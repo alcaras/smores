@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>S'mores Planner</title>
-<meta name="description" content="Plan your WoW Forever camp: which camp features and blessings give a party or raid the most.">
+<meta name="description" content="Plan your WoW Forever camp: who drops which camp feature, which professions to take, which blessing goes where.">
 <link rel="icon" href="https://wow.zamimg.com/images/wow/icons/small/inv_camelot_camping_welcomingcampfire.jpg">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -14,30 +14,45 @@
     <img src="https://wow.zamimg.com/images/wow/icons/medium/inv_camelot_camping_welcomingcampfire.jpg" alt="" width="36" height="36">
     <div>
       <h1>S'mores Planner</h1>
-      <p class="sub">Which camp features and blessings give a group the most, and who brings them. WoW Forever.</p>
+      <p class="sub">Who drops which camp feature, which professions to take, and which blessing goes where. WoW Forever.</p>
     </div>
   </div>
-  <div class="code">
-    <label for="code">Plan code</label>
-    <div class="code-row">
-      <input id="code" spellcheck="false" autocomplete="off" aria-describedby="code-help">
-      <button id="copy" type="button" data-tip="Copy the code. In game: /smores import <code>, or paste it into the panel's Code box (/smores plan) and press Enter.">Copy</button>
-      <button id="load" type="button" data-tip="Load a code you pasted here, for example one copied from the game's Code box.">Load</button>
-    </div>
-    <p id="code-help" class="hint">In game: <kbd>/smores import &lt;code&gt;</kbd>, or the panel's Code box. Paste a code from the game here and Load.</p>
-    <p id="code-error" class="error" role="alert" hidden></p>
+  <div class="share" aria-label="Share this plan">
+    <button id="share-link" type="button" data-tip="Copy a link to this plan: the people, their professions and the goal.">Copy link</button>
+    <button id="share-chat" type="button" data-tip="Copy one line with the plan, for Discord or party chat.">Copy chat line</button>
+    <button id="share-code" type="button" data-tip="Copy the plan code. In game: /smores import <code>, or paste it into the panel's Code box (/smores plan).">Copy code</button>
+    <details class="import">
+      <summary data-tip="Load a plan code or link, for example one copied from the game's Code box.">Import</summary>
+      <form id="import-form" class="import-form">
+        <input id="import-code" spellcheck="false" autocomplete="off" placeholder="SM1:L:WAt30,ROm30,..." aria-label="Plan code or link">
+        <button type="submit">Load</button>
+      </form>
+      <p id="import-error" class="error" role="alert" hidden></p>
+    </details>
   </div>
 </header>
 
-<main>
-  <section class="roster" aria-labelledby="roster-h">
+<main class="layout">
+  <section class="group" aria-labelledby="group-h">
     <div class="section-head">
-      <h2 id="roster-h">Group <span id="count" class="muted"></span></h2>
+      <h2 id="group-h">Group <span id="count" class="muted"></span></h2>
       <div class="tools">
-        <label class="inline">Level <input id="all-level" type="number" min="1" max="60" step="1" value="30"></label>
-        <button id="set-level" type="button" data-tip="Give everyone this level.">Set all</button>
-        <button id="preset5" type="button" data-tip="A level 30 group: warrior tank, rogue, mage, priest, hunter.">Starter group</button>
-        <button id="clear" type="button" data-tip="Remove everyone.">Clear</button>
+        <details class="menu" id="groups-menu">
+          <summary data-tip="Start a new group, or load and save groups in this browser.">Groups</summary>
+          <div class="menu-box">
+            <button id="new-starter" type="button">New: starter group (level 30)</button>
+            <button id="new-empty" type="button">New: empty group</button>
+            <div class="menu-head">Saved in this browser</div>
+            <ul id="saved" class="saved"></ul>
+            <form id="save-form" class="save-form">
+              <input id="save-name" maxlength="40" placeholder="Name this group" aria-label="Group name">
+              <button type="submit">Save</button>
+            </form>
+          </div>
+        </details>
+        <label class="inline" data-tip="Give everyone this level.">All at level
+          <input id="all-level" type="number" min="1" max="60" step="1" value="30" aria-label="Level for everyone">
+        </label>
       </div>
     </div>
     <ol id="members" class="members"></ol>
@@ -45,63 +60,51 @@
       <span class="muted">Add</span>
       <div id="add-classes" class="class-picks"></div>
     </div>
-    <div class="saved-row">
-      <form id="save-form" class="save-form">
-        <input id="save-name" maxlength="40" placeholder="Name this group" aria-label="Group name">
-        <button type="submit" data-tip="Save this group under the name, in this browser. Saving under an existing name replaces it.">Save group</button>
-      </form>
-      <ul id="saved" class="saved" aria-label="Saved groups"></ul>
-    </div>
-    <p class="hint">This browser remembers your last group and your saved ones.</p>
+    <p class="hint">Names and professions are optional. With professions set, the plan only uses what that person can place; without, it says what they should take. This browser remembers the group.</p>
   </section>
 
-  <section class="options" aria-label="Options">
-    <fieldset>
-      <legend>Goal</legend>
-      <div class="seg" id="goal">
-        <button type="button" data-v="auto" data-tip="Leveling while the group's highest level is under 60, progression at 60.">By level</button>
+  <section class="plan" aria-labelledby="plan-h">
+    <div class="section-head">
+      <h2 id="plan-h">Camp plan</h2>
+      <p class="cover" tabindex="0" data-tip="Each person's buffs as a share of a full set (the class buff of their level, or the camp copy where there is no class buff yet), weighted by what their role uses."><span id="pct">0%</span> of a full buff set</p>
+    </div>
+    <div class="controls">
+      <div class="seg" id="goal" role="group" aria-label="Goal">
         <button type="button" data-v="level" data-tip="Counts rested XP from the Camp Tent, and weighs mana and spirit more (less drinking between pulls).">Leveling</button>
         <button type="button" data-v="progress" data-tip="Power only: what helps in dungeons and raids. The tent counts for nothing.">Progression</button>
+        <button type="button" data-v="auto" data-tip="Leveling while the group's highest level is under 60, progression at 60.">By level</button>
       </div>
-    </fieldset>
-    <fieldset>
-      <legend>Campfire</legend>
-      <div class="seg" id="fire">
-        <button type="button" data-v="3" data-tip="Basic Campfire Kit: holds 3 features. Anyone with Cooking 1.">Basic 3</button>
-        <button type="button" data-v="5" data-tip="Journeyman Campfire Kit: holds 5 features. Needs Cooking 140.">Journeyman 5</button>
-        <button type="button" data-v="10" data-tip="Expert Campfire Kit: holds 10 features. Needs Cooking 220. A five-person group places at most 5 an hour anyway.">Expert 10</button>
-      </div>
-    </fieldset>
-    <fieldset>
-      <legend>Totem uptime <output id="uptime-out">70%</output></legend>
-      <input id="uptime" type="range" min="0" max="100" step="5" value="70" data-tip="How much of the time a shaman's Strength of Earth totem is really up: totems last 5 min, reach only the party and die on pulls. The Sharpening Wheel's buff is always on.">
-    </fieldset>
-  </section>
-
-  <section class="result" aria-labelledby="camp-h">
-    <div class="section-head">
-      <h2 id="camp-h">Camp</h2>
-      <p class="cover" tabindex="0" data-tip="Each member's buffs as a share of a full set (the class buff of their level, or the camp copy where there is no class buff yet), weighted by what their role uses."><span id="pct">0%</span> of a full buff set</p>
+      <details class="options">
+        <summary data-tip="Campfire size and totem uptime.">Options</summary>
+        <div class="options-box">
+          <div class="opt-label">Campfire</div>
+          <div class="seg" id="fire" role="group" aria-label="Campfire">
+            <button type="button" data-v="3" data-tip="Basic Campfire Kit: holds 3 features. Anyone with Cooking 1.">Basic 3</button>
+            <button type="button" data-v="5" data-tip="Journeyman Campfire Kit: holds 5 features. Needs Cooking 140.">Journeyman 5</button>
+            <button type="button" data-v="10" data-tip="Expert Campfire Kit: holds 10 features. Needs Cooking 220. Five people place at most 5 an hour anyway.">Expert 10</button>
+          </div>
+          <label class="opt-label" for="uptime">Totem uptime <output id="uptime-out">70%</output></label>
+          <input id="uptime" type="range" min="0" max="100" step="5" value="70" data-tip="How much of the time a shaman's Strength of Earth totem is really up: totems last 5 min, reach only the party and die on pulls. The Sharpening Wheel's buff is always on.">
+        </div>
+      </details>
     </div>
-    <ul id="camp" class="camp"></ul>
-    <div id="notes" class="notes"></div>
-  </section>
-
-  <section class="profs" aria-labelledby="profs-h">
-    <h2 id="profs-h">Who brings what</h2>
-    <p class="hint">Who places which feature, one per person an hour. Set someone's professions in the group above, and the plan only uses what they can place.</p>
-    <ul id="profs" class="prof-list"></ul>
-  </section>
-
-  <section class="grid-wrap" aria-labelledby="grid-h">
-    <h2 id="grid-h">Coverage</h2>
-    <p class="hint">Each member's share of a full buff: <span class="k k-class">class buff</span> <span class="k k-camp">camp copy</span> <span class="k k-missing">missing</span>, blank where it does nothing for that role.</p>
-    <div class="grid-scroll"><table id="grid" class="grid"></table></div>
+    <ol id="people" class="people" aria-label="Who drops what"></ol>
+    <div id="extras" class="extras"></div>
+    <details class="more">
+      <summary>Coverage per person</summary>
+      <p class="hint">Each person's share of a full buff: <span class="k k-class">class buff</span> <span class="k k-camp">camp copy</span> <span class="k k-missing">missing</span>, blank where it does nothing for their role.</p>
+      <div class="grid-scroll"><table id="grid" class="grid"></table></div>
+    </details>
+    <details class="more">
+      <summary>All camp features</summary>
+      <p class="hint" id="ref-hint"></p>
+      <div class="grid-scroll"><table id="ref" class="ref"></table></div>
+    </details>
   </section>
 </main>
 
 <footer class="foot">
-  <p>Data from the WoW Forever client (<span id="build"></span>). Values are estimates; class buffs beat their camp copies, and each member drops at most one feature an hour. Icons: World of Warcraft &copy; Blizzard Entertainment, via Wowhead. A fan tool, not affiliated with Blizzard. <a href="https://github.com/alcaras/smores">The addon and its source</a>.</p>
+  <p>Data from the WoW Forever client (<span id="build"></span>). Values are estimates; class buffs beat their camp copies, and each person places at most one feature an hour. The S'mores addon does this in game with what people really carry: <a href="https://github.com/alcaras/smores">download and source</a>. Icons: World of Warcraft &copy; Blizzard Entertainment, via Wowhead. A fan tool, not affiliated with Blizzard.</p>
 </footer>
 <script type="module" src="app.js"></script>
 </body>

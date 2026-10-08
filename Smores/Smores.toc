@@ -1,7 +1,7 @@
 ## Interface: 16001
 ## Title: S'mores
 ## Notes: Plans your group's camp: who drops which camp feature, so camp buffs fill what class buffs leave open. /smores
-## Version: 0.3.2
+## Version: 0.3.3
 ## Author: Dominik
 ## AllowLoadGameType: camelot
 ## SavedVariables: SmoresDB

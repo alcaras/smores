@@ -236,8 +236,9 @@ export function makeModel(D) {
     return roster.map((e, i) => {
       const base = e.class[0] + e.class.slice(1).toLowerCase();
       count[base] = (count[base] || 0) + 1;
+      const named = (e.name || "").trim();
       const m = {
-        key: "p" + (i + 1), name: count[base] > 1 ? `${base} ${count[base]}` : base, class: e.class,
+        key: "p" + (i + 1), name: named || (count[base] > 1 ? `${base} ${count[base]}` : base), class: e.class,
         level: e.level || 60, role: e.role || defaultRole(e.class), talents: {}, planIndex: i,
       };
       if (e.profs && e.profs.length) {
@@ -277,22 +278,27 @@ export const PROF_CODE = { 171: "Al", 164: "Bs", 333: "En", 202: "Eg", 182: "He"
   185: "Co", 129: "Fa", 356: "Fi" };
 const CODE_PROF = Object.fromEntries(Object.entries(PROF_CODE).map(([s, k]) => [k, +s]));
 
+// a name as it can travel in a code: no separators, no spaces, at most 24 characters
+export const cleanName = (n) => (n || "").replace(/[\s,~:#-]+/g, "").slice(0, 24);
+
 export function exportPlan(roster, goal) {
   const g = goal === "level" ? "L" : goal === "progress" ? "P" : "A";
   return `SM1:${g}:` + roster.map((e) => (CLASS_CODE[e.class] || "WA") + (ROLE_CODE[e.role] || "m") + Math.floor(e.level || 60)
-    + (e.profs && e.profs.length ? "-" + e.profs.map((p) => PROF_CODE[p] || "").join("") : "")).join(",");
+    + (e.profs && e.profs.length ? "-" + e.profs.map((p) => PROF_CODE[p] || "").join("") : "")
+    + (cleanName(e.name) ? "~" + cleanName(e.name) : "")).join(",");
 }
 
 export function importPlan(text) {
-  const m = /(?:SM1|CW1):([LPA]):([A-Za-z0-9,-]*)/.exec(text || "");   // CW1: from when it was called Campwise
+  const m = /(?:SM1|CW1):([LPA]):(\S*)/u.exec(text || "");   // CW1: from when it was called Campwise
   if (!m) return null;
   const roster = [];
-  for (const [, code, role, level, profs] of m[2].matchAll(/([A-Z]{2})([a-z])(\d+)(?:-((?:[A-Z][a-z])*))?/g)) {
+  for (const [, code, role, level, profs, name] of m[2].matchAll(/([A-Z]{2})([a-z])(\d+)(?:-((?:[A-Z][a-z])*))?(?:~([^,~]*))?/gu)) {
     const cls = CODE_CLASS[code];
     if (cls && roster.length < PLAN_MAX) {
       const e = { class: cls, role: CODE_ROLE[role] || defaultRole(cls), level: Math.max(1, Math.min(60, +level)) };
       const p = [...(profs || "").matchAll(/[A-Z][a-z]/g)].map((x) => CODE_PROF[x[0]]).filter(Boolean);
       if (p.length) e.profs = [...new Set(p)];
+      if (cleanName(name)) e.name = cleanName(name);
       roster.push(e);
     }
   }

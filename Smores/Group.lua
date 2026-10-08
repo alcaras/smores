@@ -236,9 +236,11 @@ end
 
 -- returns roster, goal ("level" | "progress" | nil = by level); nil when the string is not a S'mores plan
 function ns.ImportPlan(text)
-	local g, list = (text or ""):match("SM1:([LPA]):([%w,%-]*)")
-	if not g then g, list = (text or ""):match("CW1:([LPA]):([%w,%-]*)") end
-	list = list and list:gsub("%-%a*", "")   -- planned professions (the site's "-BsMi"): in game the real ones count
+	local g, list = (text or ""):match("SM1:([LPA]):(%S*)")
+	if not g then g, list = (text or ""):match("CW1:([LPA]):(%S*)") end
+	-- the site's extras after a member: planned professions ("-BsMi") and a name ("~Alcara", any letters): in game the
+	-- real professions and names count
+	list = list and list:gsub("~[^,]*", ""):gsub("%-%a*", "")
 	if not g then return nil end
 	local roster = {}
 	for code, role, level in list:gmatch("(%u%u)(%l)(%d+)") do
