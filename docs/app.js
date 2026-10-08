@@ -20,9 +20,88 @@ const el = (tag, attrs = {}, ...kids) => {
 };
 const icon = (name, alt = "", size = 20) => el("img", { src: ICON(name), alt, width: size, height: size, loading: "lazy", class: "ico" });
 
-const D = await (await fetch("data.json")).json();
+// ------------------------------------------------------------------ tooltips: any element with data-tip (hover or focus)
+const tipBox = el("div", { class: "tip", role: "tooltip", hidden: true });
+document.body.append(tipBox);
+function showTip(t) {
+  tipBox.textContent = t.dataset.tip;
+  tipBox.hidden = false;
+  const r = t.getBoundingClientRect(), w = tipBox.offsetWidth, h = tipBox.offsetHeight;
+  const x = Math.max(8, Math.min(r.left, innerWidth - w - 8));
+  const y = r.bottom + 8 + h > innerHeight ? Math.max(8, r.top - h - 8) : r.bottom + 8;
+  tipBox.style.left = x + "px";
+  tipBox.style.top = y + "px";
+}
+const hideTip = () => { tipBox.hidden = true; };
+document.addEventListener("mouseover", (e) => { const t = e.target.closest("[data-tip]"); t ? showTip(t) : hideTip(); });
+document.addEventListener("focusin", (e) => { const t = e.target.closest("[data-tip]"); t ? showTip(t) : hideTip(); });
+document.addEventListener("focusout", hideTip);
+document.addEventListener("scroll", hideTip, { passive: true });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideTip(); });
+
+const D = await (await fetch("data.json", { cache: "no-cache" })).json();   // revalidate: new data after a patch
 const M = makeModel(D);
 $("build").textContent = "build " + D.build;
+
+// "+163 armor, +7 stats, +6 resistances" for a buff line's amounts
+function amountsText(line, a) {
+  const parts = [];
+  if (a.armor) parts.push(`+${a.armor} armor`);
+  if (a.stat) parts.push(`+${a.stat} all stats`);
+  if (a.res) parts.push(`+${a.res} resistances`);
+  if (a.pct) parts.push(`+${a.pct}% all stats`);
+  if (a.sta) parts.push(`+${a.sta} Stamina`);
+  if (a.str) parts.push(`+${a.str} Strength`);
+  if (a.ap) parts.push(`+${a.ap} melee attack power`);
+  if (a.mp5) parts.push(`+${a.mp5} mana every 5 sec`);
+  if (a.spi) parts.push(`+${a.spi} Spirit`);
+  if (a.int) parts.push(`+${a.int} Intellect`);
+  if (a.crit) parts.push(`+${a.crit}% crit`);
+  return parts.join(", ") || "nothing yet at this level";
+}
+const KIND = { all: "", blessing: " blessing", totem: " totem", talent: " talent" };
+const levelsOf = (members) => [...new Set(members.map((m) => m.level))].sort((a, b) => a - b);
+const upgradesOf = (line) => Object.values(D.items).filter((it) => it.line === line && it.tier > 1)
+  .sort((a, b) => a.tier - b.tier);
+
+function classBuffTip(line, level) {
+  const c = D.class[line];
+  return `${c.name}: ${CLASS_NAME(c.class)}${KIND[c.kind]}.\nAt level ${level}: ${amountsText(line, M.classAmounts(line, level))}.` +
+    (c.kind === "totem" ? "\nTotems last 5 min and reach only the shaman's party." : "") +
+    (c.kind === "talent" ? "\nOnly a caster who took the talent has it." : "");
+}
+
+function featureTip(line, members) {
+  const it = M.CAMP_ITEM[line];
+  const prof = PROFESSION[it.skill];
+  const out = [`${it.name}: ${prof} 20${SECONDARY.has(it.skill) ? " (a secondary profession)" : ""}.`];
+  if (line === "tent") {
+    out.push("Tops up rested XP to 5% of a level for everyone sitting nearby, once an hour each.",
+      "Does nothing for someone already rested past that, or at level 60.");
+  } else {
+    out.push("Sit at the fire for 1 minute: the buff lasts 1 hour.");
+    for (const L of levelsOf(members)) out.push(`Level ${L}: ${amountsText(line, M.campAmounts(line, L))}`);
+    const c = D.class[line];
+    const top = Math.max(...members.map((m) => m.level));
+    out.push(`Same buff as ${c.name} (${CLASS_NAME(c.class)}${KIND[c.kind]}): they don't stack, the higher counts.`,
+      `${c.name} at level ${top}: ${amountsText(line, M.classAmounts(line, top))}.`);
+  }
+  const ups = upgradesOf(line);
+  if (ups.length) {
+    out.push("Upgrades keep this buff and add:");
+    for (const u of ups) out.push(`  ${u.name} (${prof} ${u.rank})${u.desc ? ": " + u.desc : ""}`);
+  }
+  return out.join("\n");
+}
+
+function cellTip(m, line, c, plan) {
+  const name = `${m.name} (${m.role}), ${LINE_NAME[line]}`;
+  if (c.kind === "missing") return `${name}: nobody in this plan brings it.`;
+  const pct = Math.round((c.pct || 0) * 100);
+  if (c.kind === "camp") return `${name}: ${M.CAMP_NAME[line]} from the camp, ${pct}% of the full buff.`;
+  const blessed = (plan.bless[m.key] || []).includes(line);
+  return `${name}: ${D.class[line].name}${blessed ? " (the paladin's blessing for this member)" : ""}, ${pct}% of the full buff.`;
+}
 
 // ------------------------------------------------------------------ state (saved in this browser, shared by the URL)
 // most players are leveling: a level 30 group, planned for XP
@@ -63,7 +142,7 @@ function memberRow(e, i, names) {
   const level = el("input", { type: "number", min: 1, max: 60, step: 1, value: e.level, "aria-label": "Level",
     onchange: (ev) => { e.level = Math.max(1, Math.min(60, Math.round(+ev.target.value || 60))); render(); } });
   return el("li", { class: "member" },
-    el("img", { src: CLASS_ICON(e.class), alt: names[i], title: names[i], width: 28, height: 28, class: "cls" }),
+    el("img", { src: CLASS_ICON(e.class), alt: names[i], "data-tip": `${names[i]}: ${e.role}, level ${e.level}. Change the class, role and level here.`, width: 28, height: 28, class: "cls", tabindex: 0 }),
     classSel, roleSel, level,
     el("button", { type: "button", class: "x", "aria-label": "Remove " + names[i], onclick: () => { state.roster.splice(i, 1); render(); } }, "×"));
 }
@@ -71,7 +150,7 @@ function memberRow(e, i, names) {
 function renderAddButtons() {
   const box = $("add-classes");
   box.replaceChildren(...CLASSES.map((c) => el("button", {
-    type: "button", class: "pick", title: "Add a " + CLASS_NAME(c), "aria-label": "Add a " + CLASS_NAME(c),
+    type: "button", class: "pick", "data-tip": `Add a ${CLASS_NAME(c)} (up to ${PLAN_MAX})`, "aria-label": "Add a " + CLASS_NAME(c),
     onclick: () => {
       if (state.roster.length >= PLAN_MAX) return;
       const level = state.roster[0] ? state.roster[0].level : 60;
@@ -88,17 +167,17 @@ function resolvedGoal(members) {
   return top > 0 && top < 60 ? "level" : "progress";
 }
 
-function campCard(line, level) {
+function campCard(line, level, members) {
   const it = M.CAMP_ITEM[line];
   const cls = D.class[line];
   const prof = PROFESSION[it.skill] || "";
-  return el("li", { class: "feature" },
+  return el("li", { class: "feature", tabindex: 0, "data-tip": featureTip(line, members) },
     icon(it.icon || "inv_misc_questionmark", "", 36),
     el("div", {},
       el("div", { class: "fname" }, it.name, " ", el("span", { class: "gives" },
         line === "tent" ? "rested XP to 5% of a level, once an hour" : M.gives(line, level))),
       el("div", { class: "fmeta" }, line === "tent" ? `${prof} 20 · for leveling` : `${prof} 20 · same buff as `,
-        line === "tent" ? null : el("span", { class: "cbuff" }, icon(cls.icon, "", 14), " ", cls.name))));
+        line === "tent" ? null : el("span", { class: "cbuff", "data-tip": classBuffTip(line, level) }, icon(cls.icon, "", 14), " ", cls.name))));
 }
 
 // the classes a primary profession usually goes with (armor it makes, what it gathers alongside)
@@ -127,14 +206,17 @@ function renderProfs(members, lines) {
   const rows = whoBrings(members, lines).map(({ m, line }) => {
     const who = [el("img", { src: CLASS_ICON(m.class), alt: "", width: 20, height: 20, class: "ico" }), " ",
       el("span", { class: "c-" + m.class.toLowerCase() }, m.name)];
-    if (!line) return el("li", {}, ...who, el("span", { class: "muted" }, " free to pick anything"));
+    if (!line) return el("li", { tabindex: 0, "data-tip": "This plan has no feature left for them: their professions are free." }, ...who, el("span", { class: "muted" }, " free to pick anything"));
     const it = M.CAMP_ITEM[line];
     const prof = PROFESSION[it.skill];
-    return el("li", {}, ...who, " → ", icon(it.icon, "", 18), " ", it.name, " ",
+    const ups = upgradesOf(line).map((u) => `${u.name} at ${prof} ${u.rank}`).join(", ");
+    const tip = `${m.name} takes ${prof} (skill 20 places the ${it.name}).` + (ups ? `\nHigher skill places ${ups}: same buff, plus their extras.` : "") +
+      (SECONDARY.has(it.skill) ? `\n${prof} is a secondary profession: it doesn't use up one of the two primary ones.` : "");
+    return el("li", { tabindex: 0, "data-tip": tip }, ...who, " → ", icon(it.icon, "", 18), " ", it.name, " ",
       el("span", { class: "muted" }, `(${prof} 20${SECONDARY.has(it.skill) ? ", secondary" : ""})`));
   });
   const [kit, rank] = FIRE_COOKING[state.fire];
-  rows.push(el("li", {}, icon("inv_camelot_camping_welcomingcampfire", "", 18), " The fire: ", kit, " ",
+  rows.push(el("li", { tabindex: 0, "data-tip": "Basic Campfire Kit (Cooking 1) holds 3 features, Journeyman (Cooking 140) 5, Expert (Cooking 220) 10.\nThe fire lasts 15 minutes; so does every feature placed at it." }, icon("inv_camelot_camping_welcomingcampfire", "", 18), " The fire: ", kit, " ",
     el("span", { class: "muted" }, `(anyone with Cooking ${rank}; Cooking is secondary)`)));
   rows.push(el("li", { class: "muted" }, "First Aid, Fishing and Cooking are secondary professions: anyone can add them to their two primary ones."));
   $("profs").replaceChildren(...rows);
@@ -151,7 +233,7 @@ function writeSaved(list) {
 function renderSaved() {
   const list = readSaved();
   $("saved").replaceChildren(...list.map((s, i) => el("li", { class: "chip" },
-    el("button", { type: "button", class: "chip-load", title: `Load ${s.name} (${s.roster.length})`, onclick: () => {
+    el("button", { type: "button", class: "chip-load", "data-tip": `Load ${s.name}: ${s.roster.map((e) => CLASS_NAME(e.class) + " " + e.level).join(", ")}`, onclick: () => {
       state = { ...state, roster: structuredClone(s.roster), goal: s.goal || state.goal, fire: s.fire || state.fire,
         uptime: s.uptime ?? state.uptime };
       render();
@@ -198,7 +280,7 @@ function render() {
   const level = Math.max(...members.map((m) => m.level));
   $("pct").textContent = Math.round(plan.pct * 100) + "%";
   $("camp").replaceChildren(...(theory.lines.length
-    ? theory.lines.map((line) => campCard(line, level))
+    ? theory.lines.map((line) => campCard(line, level, members))
     : [el("li", { class: "empty" }, "The group's class buffs already cover everything a camp could add.")]));
 
   // notes: blessings, the totem, what else would help
@@ -206,15 +288,15 @@ function render() {
   const by = {};
   for (const m of members) for (const b of plan.bless[m.key] || []) (by[b] ||= []).push(m.name);
   if (Object.keys(by).length) {
-    notes.push(el("p", {}, el("strong", {}, "Blessings "), ...Object.entries(by).flatMap(([b, who], i) => [
+    notes.push(el("p", { tabindex: 0, "data-tip": "Each paladin gives every class one blessing. Each member gets the blessing whose camp copy is weakest or missing, and the camp covers the rest." }, el("strong", {}, "Blessings "), ...Object.entries(by).flatMap(([b, who], i) => [
       i ? "; " : "", icon(D.class[b].icon, "", 16), " ", D.class[b].name, " → ", who.join(", ")])));
   }
   if (plan.totem) {
-    notes.push(el("p", {}, el("strong", {}, "Totem "), icon(D.class.str.icon, "", 16),
+    notes.push(el("p", { tabindex: 0, "data-tip": "A shaman has one earth totem at a time. With a Sharpening Wheel down, the earth slot is free for Stoneskin or Tremor at little cost. Set the uptime on the left." }, el("strong", {}, "Totem "), icon(D.class.str.icon, "", 16),
       ` Strength of Earth ~${Math.round(plan.totem.soe)} Str at ${state.uptime}% uptime, a Sharpening Wheel ${plan.totem.wheel}.`));
   }
   if (plan.need.length) {
-    notes.push(el("p", {}, el("strong", {}, "Also useful "), ...plan.need.slice(0, 3).flatMap((n, i) => [
+    notes.push(el("p", { tabindex: 0, "data-tip": "These would still add something, but the fire is full or everyone already places one feature an hour." }, el("strong", {}, "Also useful "), ...plan.need.slice(0, 3).flatMap((n, i) => [
       i ? ", " : "", icon(M.CAMP_ITEM[n.line].icon, "", 16), " ", M.CAMP_NAME[n.line]]),
       el("span", { class: "muted" }, " (with a bigger fire or more people)")));
   }
@@ -226,15 +308,18 @@ function render() {
 
   // the grid
   const head = el("tr", {}, el("th", { scope: "col" }, ""), ...members.map((m) =>
-    el("th", { scope: "col", title: `${m.name}, ${m.role}, level ${m.level}` },
+    el("th", { scope: "col", tabindex: 0, "data-tip": `${m.name}: ${m.role}, level ${m.level}` },
       el("img", { src: CLASS_ICON(m.class), alt: "", width: 18, height: 18 }), el("span", { class: "gname" }, m.name))));
   const rows = LINES.map((line) => el("tr", {},
-    el("th", { scope: "row" }, icon(M.CAMP_ITEM[line].icon, "", 16), " ", LINE_NAME[line]),
+    el("th", { scope: "row", tabindex: 0, "data-tip": line === "tent"
+      ? "Rested XP: only the Camp Tent (Leatherworking) gives it."
+      : `${LINE_NAME[line]}: the class buff ${D.class[line].name} (${CLASS_NAME(D.class[line].class)}) or the camp's ${M.CAMP_NAME[line]} (${PROFESSION[M.CAMP_ITEM[line].skill]}).` },
+      icon(M.CAMP_ITEM[line].icon, "", 16), " ", LINE_NAME[line]),
     ...members.map((m) => {
       const c = plan.cells[m.key][line];
       if (!c || c.kind === "none") return el("td", {});
       const pct = Math.round((c.pct || 0) * 100);
-      return el("td", { class: "k-" + c.kind, title: `${m.name}: ${LINE_NAME[line]} ${c.kind === "class" ? "from a class buff" : c.kind === "camp" ? "from the camp" : "missing"}` }, String(pct));
+      return el("td", { class: "k-" + c.kind, tabindex: 0, "data-tip": cellTip(m, line, c, plan) }, String(pct));
     })));
   $("grid").replaceChildren(el("thead", {}, head), el("tbody", {}, rows));
 }

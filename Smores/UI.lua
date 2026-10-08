@@ -43,6 +43,57 @@ local function flatButton(parent, label, w, onClick)
 	return b
 end
 
+-- Tooltips: tip(frame, textOrFn). The first line is the title; a frame with .itemID shows the game's item tooltip,
+-- with the text under it.
+local function tip(frame, fn)
+	frame:SetScript("OnEnter", function(self)
+		local t = type(fn) == "function" and fn(self) or fn
+		if not t and not self.itemID then return end
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		if self.itemID then
+			GameTooltip:SetItemByID(self.itemID)
+			if t then GameTooltip:AddLine(t, 1, 0.82, 0, true) end
+		else
+			local first, rest = t:match("^([^\n]*)\n?(.*)$")
+			GameTooltip:SetText(first, 1, 1, 1)
+			if rest ~= "" then GameTooltip:AddLine(rest, 1, 0.82, 0, true) end
+		end
+		GameTooltip:Show()
+	end)
+	frame:SetScript("OnLeave", function() GameTooltip:Hide() end)
+end
+ns.Tip = tip
+
+-- an invisible frame over a font string, for its tooltip
+local function hover(parent, w, h, fn)
+	local h2 = CreateFrame("Frame", nil, parent)
+	h2:SetSize(w, h)
+	h2:EnableMouse(true)
+	tip(h2, fn)
+	return h2
+end
+
+local NOTE_TIPS = {
+	Need = "Need\nBuffs nobody here carries that would add the most. Ask the group, or post the plan.",
+	Also = "Also useful\nWould still add something, but the fire is full or everyone already places one feature.",
+	Skip = "Skip\nCamp items people carry that a class buff here already beats: not worth the hourly cooldown.",
+	Bless = "Blessings\nEach paladin gives every class one blessing: the one whose camp copy is weakest or missing. "
+		.. "The camp covers the rest.",
+	Totem = "Totem\nA shaman has one earth totem at a time. Strength of Earth counts at its uptime (/smores uptime). "
+		.. "With a Sharpening Wheel down, the earth slot is free for Stoneskin or Tremor at little cost.",
+	Best = "Best items\nWhat they would drop if they carried the best camp item their professions allow. "
+		.. "It is not in their bags now.",
+	Theory = "Theory\nThe best camp for this group if professions did not matter (and an Expert fire).",
+	You = "Your next choice\nYour next-best drop and how much worse the plan gets with it.",
+	Camp = "Camp\nThe best camp for this plan, ignoring professions (an Expert fire holds 10).",
+}
+local WHY_TIPS = {
+	["no addon"] = "No S'mores\nThe planner can't see their bags or cooldown. They still get every buff at the fire.",
+	["on cooldown"] = "On cooldown\nEach player places one camp feature an hour.",
+	["no camp items"] = "No camp items\nNothing in their bags that their professions can place.",
+	["keep cooldown"] = "Keep the cooldown\nNothing they carry adds anything to this camp.",
+}
+
 -- what a line gives at a level, short ("+34 Str", "+8% stats")
 function ns.Gives(line, level)
 	if line == "tent" then return "rested XP" end
@@ -90,11 +141,19 @@ f.fire = text(f, "GameFontHighlightSmall", "RIGHT", 130)
 f.fire:SetPoint("TOPRIGHT", -LAYOUT.pad - 16, -LAYOUT.pad)
 f.close = flatButton(f, "x", 14, function() f:Hide() end)
 f.close:SetPoint("TOPRIGHT", -4, -4)
+tip(f.close, "Close\nEscape closes it too. /smores opens it again.")
+f.fireTip = hover(f, 130, 14, "Campfire\nThe biggest campfire kit someone with S'mores carries, and the features used / held. "
+	.. "Basic holds 3, Journeyman 5 (Cooking 140), Expert 10 (Cooking 220). Fire and features last 15 minutes.")
+f.fireTip:SetPoint("TOPRIGHT", -LAYOUT.pad - 16, -LAYOUT.pad + 1)
 -- what the plan is for: the party or you, leveling or progression (click to switch)
 f.scopeBtn = flatButton(f, "Party", 44, function() if ns.ToggleScope then ns.ToggleScope() end end)
 f.scopeBtn:SetPoint("LEFT", f.title, "RIGHT", 8, 0)
 f.goalBtn = flatButton(f, "Leveling", 66, function() if ns.ToggleGoal then ns.ToggleGoal() end end)
 f.goalBtn:SetPoint("LEFT", f.scopeBtn, "RIGHT", 4, 0)
+tip(f.scopeBtn, "Plan for\nParty: the whole group's buffs. You: only your class and role; the rows still say who drops "
+	.. "what for you. Click to switch.")
+tip(f.goalBtn, "Goal\nLeveling: rested XP from a Camp Tent counts, mana and spirit weigh more. Progression: power only. "
+	.. "It follows your level until you click; /smores goal auto follows it again.")
 
 f.rows = {}
 for i = 1, LAYOUT.planRows do
@@ -108,7 +167,11 @@ for i = 1, LAYOUT.planRows do
 	r.nameBtn:SetPoint("LEFT")
 	r.nameBtn:SetSize(LAYOUT.nameW - 4, LAYOUT.rowH)
 	r.nameBtn:SetScript("OnClick", function(self) if ns.planMode and ns.CycleClass then ns.CycleClass(self.index) end end)
+	tip(r.nameBtn, "Class\nClick to change the class.")
 	r.role = flatButton(r, "", LAYOUT.roleW, function(self) if ns.CycleRole then ns.CycleRole(self.key) end end)
+	tip(r.role, function(self)
+		return "Role: " .. (self.role or "?") .. "\nThe plan weighs each buff by what this role uses. Click to change."
+	end)
 	r.role:SetPoint("LEFT", LAYOUT.nameW, 0)
 	r.icon = r:CreateTexture(nil, "ARTWORK")
 	r.icon:SetSize(LAYOUT.iconS, LAYOUT.iconS)
@@ -117,24 +180,35 @@ for i = 1, LAYOUT.planRows do
 	r.item:SetPoint("LEFT", r.icon, "RIGHT", 4, 0)
 	r.gives = text(r, "GameFontDisableSmall", "LEFT", LAYOUT.givesW)
 	r.gives:SetPoint("LEFT", r.item, "RIGHT", 2, 0)
+	r.itemBtn = hover(r, LAYOUT.iconS + 4 + LAYOUT.itemW, LAYOUT.rowH, function(self) return self.tipText end)
+	r.itemBtn:SetPoint("LEFT", LAYOUT.nameW + LAYOUT.roleW + 6, 0)
 	r.status = text(r, "GameFontHighlightSmall", "RIGHT", 44)
 	r.status:SetPoint("RIGHT")
+	r.statusTip = hover(r, 44, LAYOUT.rowH, function(self) return self.tipText end)
+	r.statusTip:SetPoint("RIGHT")
 	r.remove = flatButton(r, "x", 14, function(self) if ns.RemovePlanMember then ns.RemovePlanMember(self.index) end end)
 	r.remove:SetPoint("RIGHT")
+	r.remove:SetFrameLevel(r.statusTip:GetFrameLevel() + 2)
+	tip(r.remove, "Remove\nTake this member out of the plan.")
 	r.remove:Hide()
 	r:Hide()
 	f.rows[i] = r
 end
 
-f.notes = {}
+f.notes, f.noteTips = {}, {}
 for i = 1, 9 do
 	local n = text(f, "GameFontHighlightSmall", "LEFT", LAYOUT.width - 2 * LAYOUT.pad)
 	n:SetWordWrap(true)   -- a long Need / Best line wraps instead of being cut
 	n:Hide()
 	f.notes[i] = n
+	f.noteTips[i] = hover(f, LAYOUT.width - 2 * LAYOUT.pad, LAYOUT.noteH, function(self) return self.tipText end)
+	f.noteTips[i]:Hide()
 end
 
 f.cover = text(f, "GameFontHighlightSmall")
+f.coverTip = hover(f, 200, LAYOUT.footH, "Coverage\nNow: from what people carry. Best items: if everyone carried the best "
+	.. "camp item their professions allow. Theory: ignoring professions. Each is the group's buffs as a share of a full "
+	.. "set (the class buff of their level, or the camp copy where there is none yet), weighted by role.")
 f.post = flatButton(f, "Post to group", 92, function() if ns.Post then ns.Post() end end)
 f.gridBtn = flatButton(f, "Grid", 44, function()
 	if ns.db then ns.db.grid = not ns.db.grid end
@@ -148,6 +222,11 @@ f.codeBtn = flatButton(f, "Code", 44, function()
 end)
 f.addBtn:Hide()
 f.codeBtn:Hide()
+tip(f.post, "Post to group\nOne line in party or raid chat with the plan. Only when you click, never in combat.")
+tip(f.gridBtn, "Grid\nEach member's share of each buff: blue = class buff, green = camp copy (% of the class buff), "
+	.. "red = missing, blank = no use to that role.")
+tip(f.addBtn, "Add a member\nAdds the first class the plan lacks. Click a name to change its class, a role to change it.")
+tip(f.codeBtn, "Plan code\nCopy it to the S'mores Planner (alcaras.github.io/smores), or paste a code from there and press Enter.")
 f.code = CreateFrame("EditBox", nil, f, "BackdropTemplate")
 f.code:SetSize(LAYOUT.width - 2 * LAYOUT.pad, 18)
 f.code:SetFontObject("GameFontHighlightSmall")
@@ -165,6 +244,7 @@ f.code:SetScript("OnEnterPressed", function(self)
 end)
 f.code:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
 f.code:Hide()
+tip(f.code, "Plan code\nCtrl+C copies it. Paste a code from the S'mores Planner and press Enter to load it.")
 
 -- the grid: rows = buff lines, columns = members
 local g = CreateFrame("Frame", nil, f)
@@ -180,6 +260,17 @@ local function cellText(c)
 	return RED .. "0|r"
 end
 
+local function cellTip(m, line, c, plan)
+	local name = m.name .. " (" .. m.role .. "), " .. ns.LINE_NAME[line]
+	if not c or c.kind == "none" then return nil end
+	if c.kind == "missing" then return name .. "\nNobody in this plan brings it." end
+	local pct = math.floor((c.pct or 0) * 100 + 0.5)
+	if c.kind == "camp" then return name .. "\n" .. ns.CAMP_NAME[line] .. " from the camp: " .. pct .. "% of the full buff." end
+	local blessed = false
+	for _, b in ipairs(plan.bless[m.key] or {}) do if b == line then blessed = true end end
+	return name .. "\n" .. D.class[line].name .. (blessed and " (a paladin's blessing)" or "") .. ": " .. pct .. "% of the full buff."
+end
+
 local function renderGrid(plan, members, y)
 	local cols = math.min(#members, 8)
 	g:ClearAllPoints()
@@ -193,21 +284,45 @@ local function renderGrid(plan, members, y)
 			h:SetPoint("TOPLEFT", LAYOUT.gridLabelW + (j - 1) * LAYOUT.gridCellW, 0)
 			h:SetText(classColor(m.class) .. m.name .. "|r")
 			h:Show()
-		else h:Hide() end
+			g.headTips = g.headTips or {}
+			g.headTips[j] = g.headTips[j] or hover(g, LAYOUT.gridCellW, LAYOUT.gridRowH, function(self) return self.tipText end)
+			g.headTips[j]:SetPoint("TOPLEFT", LAYOUT.gridLabelW + (j - 1) * LAYOUT.gridCellW, 0)
+			g.headTips[j].tipText = m.name .. "\n" .. m.role .. ", level " .. m.level
+			g.headTips[j]:Show()
+		else
+			h:Hide()
+			if g.headTips and g.headTips[j] then g.headTips[j]:Hide() end
+		end
 	end
 	for i, line in ipairs(ns.LINES) do
 		g.labels[i] = g.labels[i] or text(g, "GameFontDisableSmall", "LEFT", LAYOUT.gridLabelW)
 		g.labels[i]:SetPoint("TOPLEFT", 0, -i * LAYOUT.gridRowH)
 		g.labels[i]:SetText(ns.LINE_NAME[line])
+		g.labelTips = g.labelTips or {}
+		g.labelTips[i] = g.labelTips[i] or hover(g, LAYOUT.gridLabelW, LAYOUT.gridRowH, function(self) return self.tipText end)
+		g.labelTips[i]:SetPoint("TOPLEFT", 0, -i * LAYOUT.gridRowH)
+		g.labelTips[i].tipText = line == "tent" and "Rested XP\nOnly the Camp Tent (Leatherworking) gives it."
+			or (ns.LINE_NAME[line] .. "\nThe class buff " .. D.class[line].name .. ", or the camp's " .. ns.CAMP_NAME[line] .. ".")
 		g.cells[i] = g.cells[i] or {}
 		for j = 1, 8 do
 			g.cells[i][j] = g.cells[i][j] or text(g, "GameFontHighlightSmall", "CENTER", LAYOUT.gridCellW)
 			local c = g.cells[i][j]
 			if j <= cols then
 				c:SetPoint("TOPLEFT", LAYOUT.gridLabelW + (j - 1) * LAYOUT.gridCellW, -i * LAYOUT.gridRowH)
-				c:SetText(cellText(plan.cells[members[j].key] and plan.cells[members[j].key][line]))
+				local cell = plan.cells[members[j].key] and plan.cells[members[j].key][line]
+				c:SetText(cellText(cell))
 				c:Show()
-			else c:Hide() end
+				g.cellTips = g.cellTips or {}
+				g.cellTips[i] = g.cellTips[i] or {}
+				local t = g.cellTips[i][j] or hover(g, LAYOUT.gridCellW, LAYOUT.gridRowH, function(self) return self.tipText end)
+				g.cellTips[i][j] = t
+				t:SetPoint("TOPLEFT", LAYOUT.gridLabelW + (j - 1) * LAYOUT.gridCellW, -i * LAYOUT.gridRowH)
+				t.tipText = cellTip(members[j], line, cell, plan)
+				t:Show()
+			else
+				c:Hide()
+				if g.cellTips and g.cellTips[i] and g.cellTips[i][j] then g.cellTips[i][j]:Hide() end
+			end
 		end
 	end
 	g:Show()
@@ -258,12 +373,18 @@ function ns.Render(state)
 			r.item:SetText(#b > 0 and (GRAY .. "gets |r" .. table.concat(b, ", ")) or "")
 			r.gives:SetText(GRAY .. "level " .. m.level .. "|r")
 			r.status:SetText("")
+			r.role.role = m.role
+			r.itemBtn.itemID = nil
+			r.itemBtn.tipText = #b > 0 and ("Blessings\nWhat the paladins give " .. m.name .. ": " .. table.concat(b, ", ") .. ".") or nil
+			r.statusTip.tipText = nil
 			r:Show()
 		elseif m then
 			local line = plan.drops[m.key]
 			r.name:SetText(classColor(m.class) .. m.name .. "|r")
 			r.role.key = m.key
+			r.role.role = m.role
 			r.role.label:SetText(GRAY .. ROLE_SHORT[m.role] .. "|r")
+			r.itemBtn.itemID = nil
 			if line then
 				local id = m.lines[line]
 				r.icon:SetTexture(C_Item.GetItemIconByID(id))
@@ -275,6 +396,11 @@ function ns.Render(state)
 					if c and c.kind == "camp" then n = n + 1 end
 				end
 				r.gives:SetText(ns.Gives(line, state.level) .. (n > 1 and (" x" .. n) or ""))
+				r.itemBtn.itemID = id
+				r.itemBtn.tipText = line == "tent"
+					and "S'mores: tops up rested XP to 5% of a level for everyone sitting nearby, once an hour each."
+					or ("S'mores: " .. ns.Gives(line, state.level) .. " for " .. n .. (n == 1 and " member" or " members")
+						.. ". Same buff as " .. D.class[line].name .. "; the higher one counts.")
 			else
 				r.icon:Hide()
 				local why
@@ -284,6 +410,7 @@ function ns.Render(state)
 				else why = "keep cooldown" end
 				r.item:SetText(GRAY .. why .. "|r")
 				r.gives:SetText("")
+				r.itemBtn.tipText = WHY_TIPS[why]
 			end
 			local st
 			if line and state.applied[line] then st = GREEN .. "placed|r"
@@ -291,6 +418,11 @@ function ns.Render(state)
 			elseif (m.cooldown or 0) > 0 then st = GRAY .. minutes(m.cooldown) .. "|r"
 			elseif line then st = "ready" else st = "" end
 			r.status:SetText(st)
+			if line and state.applied[line] then r.statusTip.tipText = "Placed\nThe buff is on someone in the group."
+			elseif not m.known then r.statusTip.tipText = "Unknown\nNo S'mores: their cooldown can't be read."
+			elseif (m.cooldown or 0) > 0 then r.statusTip.tipText = "Cooldown\nMinutes until they can place another feature."
+			elseif line then r.statusTip.tipText = "Ready\nThey can place it now."
+			else r.statusTip.tipText = nil end
 			r:Show()
 		else
 			r:Hide()
@@ -358,13 +490,23 @@ function ns.Render(state)
 			math.floor(alt[1].delta * 100 + 0.5))
 	end
 	for i, n in ipairs(f.notes) do
+		local t = f.noteTips[i]
 		if notes[i] then
 			n:ClearAllPoints()
 			n:SetPoint("TOPLEFT", LAYOUT.pad, -y)
 			n:SetText(notes[i])
 			n:Show()
-			y = y + math.max(LAYOUT.noteH, (n:GetStringHeight() or 0) + 2)
-		else n:Hide() end
+			local h = math.max(LAYOUT.noteH, (n:GetStringHeight() or 0) + 2)
+			t:ClearAllPoints()
+			t:SetPoint("TOPLEFT", LAYOUT.pad, -y)
+			t:SetHeight(h)
+			t.tipText = NOTE_TIPS[notes[i]:match("^(%a+)  ") or ""]
+			t:Show()
+			y = y + h
+		else
+			n:Hide()
+			t:Hide()
+		end
 	end
 
 	if ns.db and ns.db.grid then
@@ -376,6 +518,8 @@ function ns.Render(state)
 	y = y + 4
 	f.cover:ClearAllPoints()
 	f.cover:SetPoint("TOPLEFT", LAYOUT.pad, -(y + 3))
+	f.coverTip:ClearAllPoints()
+	f.coverTip:SetPoint("TOPLEFT", LAYOUT.pad, -y)
 	local now = math.floor(plan.pct * 100 + 0.5)
 	local best = state.ideal and math.floor(state.ideal.pct * 100 + 0.5)
 	local theo = state.theory and math.floor(state.theory.pct * 100 + 0.5)

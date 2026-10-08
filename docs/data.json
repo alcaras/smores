@@ -657,6 +657,7 @@
  },
  "items": {
   "279938": {
+   "desc": "Containing 1 trap",
    "icon": "inv_misc_kobysstools_knifetrap_color3",
    "line": "crit",
    "name": "Trapper's Workbench",
@@ -666,6 +667,7 @@
    "tier": 3
   },
   "279940": {
+   "desc": "Contains healing potions and anti-venom",
    "icon": "inv_misc_potiona3",
    "line": "sta",
    "name": "Toxin Study",
@@ -675,6 +677,7 @@
    "tier": 2
   },
   "279941": {
+   "desc": "Allows the creation of certain reagents",
    "icon": "inv_10_skinning_leather_rarehide_color1",
    "line": "tent",
    "name": "Tanning Rack",
@@ -684,6 +687,7 @@
    "tier": 2
   },
   "279943": {
+   "desc": "Allows the creation of certain reagents",
    "icon": "10prof_table_tailoring01",
    "line": "spi",
    "name": "Spinning Wheel",
@@ -702,6 +706,7 @@
    "tier": 1
   },
   "279945": {
+   "desc": "Usable for recipes that require it",
    "icon": "inv_tailoring_modifiedcraftingreagent_orange",
    "line": "tent",
    "name": "Sewing Machine",
@@ -711,6 +716,7 @@
    "tier": 3
   },
   "279947": {
+   "desc": "Allows seeds to be multiplied or combined into rarer tiers",
    "icon": "inv_farm_herbseed",
    "line": "int",
    "name": "Seed Hybridizer",
@@ -720,6 +726,7 @@
    "tier": 3
   },
   "279948": {
+   "desc": "Spawns a common mining node over time",
    "icon": "inv_misc_powder_iron",
    "line": "ap",
    "name": "Rock Garden",
@@ -729,6 +736,7 @@
    "tier": 2
   },
   "279949": {
+   "desc": "Allows you and others nearby to buy reagents and repair gear",
    "icon": "inv_robotpet",
    "line": "bot",
    "name": "Repair Bot",
@@ -738,6 +746,7 @@
    "tier": 2
   },
   "279950": {
+   "desc": "Allows you and others nearby to purchase reagents",
    "icon": "inv_misc_enggizmos_13",
    "line": "bot",
    "name": "Reagent Bot",
@@ -747,6 +756,7 @@
    "tier": 1
   },
   "279951": {
+   "desc": "Contains healing potions and poultices",
    "icon": "inv_10_alchemy_incenseholder_color1",
    "line": "sta",
    "name": "Plague Doctor's Laboratory",
@@ -756,6 +766,7 @@
    "tier": 3
   },
   "279952": {
+   "desc": "Usable for recipes that require it",
    "icon": "inv_blacksmithingalloys_red",
    "line": "ap",
    "name": "Molten Foundry",
@@ -765,6 +776,7 @@
    "tier": 3
   },
   "279955": {
+   "desc": "Usable for recipes that require it",
    "icon": "inv_mace_1h_blacksmithing_b_01_black",
    "line": "str",
    "name": "Master Forge",
@@ -783,6 +795,7 @@
    "tier": 1
   },
   "279957": {
+   "desc": "Contains Stamina-boosting food",
    "icon": "inv_cooking_80_majorfeast",
    "line": "util",
    "name": "Cookie's Feast",
@@ -791,6 +804,7 @@
    "spell": 1307257
   },
   "279959": {
+   "desc": "Usable for recipes that require it",
    "icon": "inv_tailoring_80_tidespraylinen",
    "line": "spi",
    "name": "Loom",
@@ -826,6 +840,7 @@
    "tier": 1
   },
   "279964": {
+   "desc": "Will grow herbs over time from seeds planted",
    "icon": "inv_misc_herb_08",
    "line": "int",
    "name": "Greenhouse",
@@ -835,6 +850,7 @@
    "tier": 2
   },
   "279965": {
+   "desc": "Grants the ability to catch uncommon fish for 1 hr, provides Fishing Skill lures",
    "icon": "inv_misc_2h_draenorfishingpole_a_01",
    "line": "kings",
    "name": "Fishing Rack",
@@ -844,6 +860,7 @@
    "tier": 2
   },
   "279966": {
+   "desc": "Grants the ability to catch rare fish for 1 hr, provides Fishing Skill lures",
    "icon": "inv_fishingchair",
    "line": "kings",
    "name": "Fishing Hut",
@@ -871,6 +888,7 @@
    "tier": 1
   },
   "279969": {
+   "desc": "Allows players to read it and gain Track Beasts",
    "icon": "inv_misc_book_03",
    "line": "crit",
    "name": "Field Guide",
@@ -880,6 +898,7 @@
    "tier": 2
   },
   "279970": {
+   "desc": "Allows the creation of certain reagents",
    "icon": "inv_alchemy_90_cauldron",
    "line": "mp5",
    "name": "Fermenter",
@@ -958,6 +977,7 @@
    "spell": 1307226
   },
   "279985": {
+   "desc": "Enables more efficient disenchanting",
    "icon": "inv_eng_bottledelements",
    "line": "motw",
    "name": "Arcane Salvager",
@@ -967,6 +987,7 @@
    "tier": 2
   },
   "279987": {
+   "desc": "Usable for recipes that require it",
    "icon": "inv_enchanting_modifiedcraftingreagent_indigo",
    "line": "motw",
    "name": "Arcane Forge",
@@ -985,6 +1006,7 @@
    "tier": 2
   },
   "279989": {
+   "desc": "Usable for recipes that require it",
    "icon": "inv_10_specialization_professionbook_engineering_color1",
    "line": "util",
    "name": "Anarchist's Workbench",
@@ -993,6 +1015,7 @@
    "spell": 1307174
   },
   "279990": {
+   "desc": "Usable for recipes that require it",
    "icon": "10prof_portabletable_alchemy01",
    "line": "mp5",
    "name": "Alchemy Laboratory",

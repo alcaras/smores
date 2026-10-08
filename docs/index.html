@@ -21,8 +21,8 @@
     <label for="code">Plan code</label>
     <div class="code-row">
       <input id="code" spellcheck="false" autocomplete="off" aria-describedby="code-help">
-      <button id="copy" type="button">Copy</button>
-      <button id="load" type="button">Load</button>
+      <button id="copy" type="button" data-tip="Copy the code. In game: /smores import <code>, or paste it into the panel's Code box (/smores plan) and press Enter.">Copy</button>
+      <button id="load" type="button" data-tip="Load a code you pasted here, for example one copied from the game's Code box.">Load</button>
     </div>
     <p id="code-help" class="hint">In game: <kbd>/smores import &lt;code&gt;</kbd>, or the panel's Code box. Paste a code from the game here and Load.</p>
     <p id="code-error" class="error" role="alert" hidden></p>
@@ -35,9 +35,9 @@
       <h2 id="roster-h">Group <span id="count" class="muted"></span></h2>
       <div class="tools">
         <label class="inline">Level <input id="all-level" type="number" min="1" max="60" step="1" value="30"></label>
-        <button id="set-level" type="button">Set all</button>
-        <button id="preset5" type="button">Starter group</button>
-        <button id="clear" type="button">Clear</button>
+        <button id="set-level" type="button" data-tip="Give everyone this level.">Set all</button>
+        <button id="preset5" type="button" data-tip="A level 30 group: warrior tank, rogue, mage, priest, hunter.">Starter group</button>
+        <button id="clear" type="button" data-tip="Remove everyone.">Clear</button>
       </div>
     </div>
     <ol id="members" class="members"></ol>
@@ -48,7 +48,7 @@
     <div class="saved-row">
       <form id="save-form" class="save-form">
         <input id="save-name" maxlength="40" placeholder="Name this group" aria-label="Group name">
-        <button type="submit">Save group</button>
+        <button type="submit" data-tip="Save this group under the name, in this browser. Saving under an existing name replaces it.">Save group</button>
       </form>
       <ul id="saved" class="saved" aria-label="Saved groups"></ul>
     </div>
@@ -59,29 +59,29 @@
     <fieldset>
       <legend>Goal</legend>
       <div class="seg" id="goal">
-        <button type="button" data-v="auto">By level</button>
-        <button type="button" data-v="level">Leveling</button>
-        <button type="button" data-v="progress">Progression</button>
+        <button type="button" data-v="auto" data-tip="Leveling while the group's highest level is under 60, progression at 60.">By level</button>
+        <button type="button" data-v="level" data-tip="Counts rested XP from the Camp Tent, and weighs mana and spirit more (less drinking between pulls).">Leveling</button>
+        <button type="button" data-v="progress" data-tip="Power only: what helps in dungeons and raids. The tent counts for nothing.">Progression</button>
       </div>
     </fieldset>
     <fieldset>
       <legend>Campfire</legend>
       <div class="seg" id="fire">
-        <button type="button" data-v="3">Basic 3</button>
-        <button type="button" data-v="5">Journeyman 5</button>
-        <button type="button" data-v="10">Expert 10</button>
+        <button type="button" data-v="3" data-tip="Basic Campfire Kit: holds 3 features. Anyone with Cooking 1.">Basic 3</button>
+        <button type="button" data-v="5" data-tip="Journeyman Campfire Kit: holds 5 features. Needs Cooking 140.">Journeyman 5</button>
+        <button type="button" data-v="10" data-tip="Expert Campfire Kit: holds 10 features. Needs Cooking 220. A five-person group places at most 5 an hour anyway.">Expert 10</button>
       </div>
     </fieldset>
     <fieldset>
       <legend>Totem uptime <output id="uptime-out">70%</output></legend>
-      <input id="uptime" type="range" min="0" max="100" step="5" value="70">
+      <input id="uptime" type="range" min="0" max="100" step="5" value="70" data-tip="How much of the time a shaman's Strength of Earth totem is really up: totems last 5 min, reach only the party and die on pulls. The Sharpening Wheel's buff is always on.">
     </fieldset>
   </section>
 
   <section class="result" aria-labelledby="camp-h">
     <div class="section-head">
       <h2 id="camp-h">Camp</h2>
-      <p class="cover"><span id="pct">0%</span> of a full buff set</p>
+      <p class="cover" tabindex="0" data-tip="Each member's buffs as a share of a full set (the class buff of their level, or the camp copy where there is no class buff yet), weighted by what their role uses."><span id="pct">0%</span> of a full buff set</p>
     </div>
     <ul id="camp" class="camp"></ul>
     <div id="notes" class="notes"></div>
