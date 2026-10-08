@@ -59,12 +59,20 @@ section { min-width: 0; }
 .tools { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 label.inline { color: var(--muted); font-size: 13px; display: inline-flex; gap: 6px; align-items: center; }
 
-.members { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 6px 14px; }
-.member { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto auto 26px; gap: 6px; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.members { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 6px 14px; align-items: start; }
+.member { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto auto 26px; gap: 6px; align-items: center; align-content: start; padding: 4px 0; border-bottom: 1px solid var(--line); }
 .member select:first-of-type { min-width: 0; }
 .member .cls { border-radius: 4px; }
 .mname { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .x { padding: 0; width: 26px; height: 26px; line-height: 1; color: var(--muted); }
+.prof-pick { grid-column: 2 / -1; font-size: 13px; }
+.prof-pick summary { color: var(--muted); cursor: pointer; padding: 1px 0; list-style-position: inside; }
+.prof-pick[open] summary { color: var(--text); }
+.prof-box { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 2px 10px; padding: 6px 0 4px; }
+.prof-head { grid-column: 1 / -1; font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px; }
+.prof-opt { display: flex; gap: 4px; align-items: center; cursor: pointer; }
+.prof-opt.off { color: var(--muted); cursor: default; }
+.prof-any { grid-column: 1 / -1; justify-self: start; margin-top: 4px; font-size: 12.5px; padding: 2px 10px; }
 .add-row { display: flex; gap: 10px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
 .class-picks { display: flex; gap: 4px; flex-wrap: wrap; }
 .saved-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }

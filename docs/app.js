@@ -116,6 +116,9 @@ const DEFAULT = {
 const SAVED = "smores-saved";   // [{ name, roster, goal, fire, uptime }]
 const SECONDARY = new Set([129, 185, 356]);   // First Aid, Cooking, Fishing: anyone can learn them
 const FIRE_COOKING = { 3: ["Basic Campfire Kit", 1], 5: ["Journeyman Campfire Kit", 140], 10: ["Expert Campfire Kit", 220] };
+const PRIMARY = [171, 164, 333, 202, 182, 165, 186, 393, 197];   // alphabetical by name
+const SECONDARY_LIST = [185, 129, 356];
+let openPicker = null;   // the roster row whose professions picker is open (kept across re-renders)
 let state = structuredClone(DEFAULT);
 try {
   const saved = JSON.parse(localStorage.getItem(STORE) || "null");
@@ -133,6 +136,36 @@ function save() {
 }
 
 // ------------------------------------------------------------------ roster
+// planned professions: up to two primary, any secondary; none = "any" (the plan says what to take)
+function profPicker(e, i, name) {
+  const chosen = new Set(e.profs || []);
+  const primaries = PRIMARY.filter((p) => chosen.has(p)).length;
+  const box = (p) => {
+    const full = PRIMARY.includes(p) && primaries >= 2 && !chosen.has(p);
+    return el("label", { class: "prof-opt" + (full ? " off" : "") },
+      el("input", { type: "checkbox", checked: chosen.has(p), disabled: full, onchange: (ev) => {
+        const set = new Set(e.profs || []);
+        if (ev.target.checked) set.add(p); else set.delete(p);
+        e.profs = [...set].sort((a, b) => a - b);
+        if (!e.profs.length) delete e.profs;
+        render();
+      } }), " ", PROFESSION[p]);
+  };
+  const label = chosen.size ? [...chosen].map((p) => PROFESSION[p]).join(", ") : "Professions: any";
+  const details = el("details", { class: "prof-pick", open: openPicker === i },
+    el("summary", { "data-tip": chosen.size
+      ? `${name} can only drop what these professions place.`
+      : `Set the professions ${name} will have. Left on "any", the plan says what to take.` }, label),
+    el("div", { class: "prof-box" },
+      el("div", { class: "prof-head" }, "Primary (up to 2)"), ...PRIMARY.map(box),
+      el("div", { class: "prof-head" }, "Secondary (anyone)"), ...SECONDARY_LIST.map(box),
+      el("button", { type: "button", class: "prof-any", onclick: () => { delete e.profs; render(); } }, "Any")));
+  details.addEventListener("toggle", () => {
+    if (details.open) openPicker = i; else if (openPicker === i) openPicker = null;
+  });
+  return details;
+}
+
 function memberRow(e, i, names) {
   const classSel = el("select", { "aria-label": "Class", onchange: (ev) => {
     e.class = ev.target.value; e.role = defaultRole(e.class); render();
@@ -142,9 +175,10 @@ function memberRow(e, i, names) {
   const level = el("input", { type: "number", min: 1, max: 60, step: 1, value: e.level, "aria-label": "Level",
     onchange: (ev) => { e.level = Math.max(1, Math.min(60, Math.round(+ev.target.value || 60))); render(); } });
   return el("li", { class: "member" },
-    el("img", { src: CLASS_ICON(e.class), alt: names[i], "data-tip": `${names[i]}: ${e.role}, level ${e.level}. Change the class, role and level here.`, width: 28, height: 28, class: "cls", tabindex: 0 }),
+    el("img", { src: CLASS_ICON(e.class), alt: names[i], "data-tip": `${names[i]}: ${e.role}, level ${e.level}` + (e.profs ? `, ${e.profs.map((p) => PROFESSION[p]).join(", ")}` : "") + ". Change the class, role, level and professions here.", width: 28, height: 28, class: "cls", tabindex: 0 }),
     classSel, roleSel, level,
-    el("button", { type: "button", class: "x", "aria-label": "Remove " + names[i], onclick: () => { state.roster.splice(i, 1); render(); } }, "×"));
+    el("button", { type: "button", class: "x", "aria-label": "Remove " + names[i], onclick: () => { state.roster.splice(i, 1); openPicker = null; render(); } }, "×"),
+    profPicker(e, i, names[i]));
 }
 
 function renderAddButtons() {
@@ -202,13 +236,38 @@ function whoBrings(members, lines) {
   return out;
 }
 
-function renderProfs(members, lines) {
-  const rows = whoBrings(members, lines).map(({ m, line }) => {
+// the plan's assignment (line -> member); members left on "any" share their lines out by profession fit
+function assignment(members, theory) {
+  const lineOf = {};
+  for (const [line, i] of Object.entries(theory.assign || {})) lineOf[i] = line;
+  const flexible = members.filter((m, i) => !m.can && lineOf[i]);
+  const reshuffled = whoBrings(flexible, flexible.map((m) => lineOf[members.indexOf(m)]));
+  for (const { m, line } of reshuffled) lineOf[members.indexOf(m)] = line;
+  return members.map((m, i) => ({ m, line: lineOf[i] || null }));
+}
+
+function renderProfs(members, theory) {
+  const rows = assignment(members, theory).map(({ m, line }) => {
     const who = [el("img", { src: CLASS_ICON(m.class), alt: "", width: 20, height: 20, class: "ico" }), " ",
       el("span", { class: "c-" + m.class.toLowerCase() }, m.name)];
-    if (!line) return el("li", { tabindex: 0, "data-tip": "This plan has no feature left for them: their professions are free." }, ...who, el("span", { class: "muted" }, " free to pick anything"));
+    const theirs = (m.profs || []).map((p) => PROFESSION[p]).join(", ");
+    if (!line) {
+      let why = "free to pick anything", tipText = "This plan has no feature left for them: their professions are free.";
+      if (m.can && !m.can.length) {
+        why = `${theirs}: nothing that gives a buff`;
+        tipText = "None of these professions places a buff feature (Engineering places only the Reagent and Repair Bots).";
+      } else if (m.can) {
+        why = `${theirs}: nothing this camp needs`;
+        tipText = "What their professions place is already covered by a class buff, or the fire is full.";
+      }
+      return el("li", { tabindex: 0, "data-tip": tipText }, ...who, el("span", { class: "muted" }, " " + why));
+    }
     const it = M.CAMP_ITEM[line];
     const prof = PROFESSION[it.skill];
+    if (m.can) {
+      return el("li", { tabindex: 0, "data-tip": `${m.name} has ${theirs}: ${prof} places the ${it.name}.` },
+        ...who, " drops ", icon(it.icon, "", 18), " ", it.name, " ", el("span", { class: "muted" }, `(their ${prof})`));
+    }
     const ups = upgradesOf(line).map((u) => `${u.name} at ${prof} ${u.rank}`).join(", ");
     const tip = `${m.name} takes ${prof} (skill 20 places the ${it.name}).` + (ups ? `\nHigher skill places ${ups}: same buff, plus their extras.` : "") +
       (SECONDARY.has(it.skill) ? `\n${prof} is a secondary profession: it doesn't use up one of the two primary ones.` : "");
@@ -216,8 +275,9 @@ function renderProfs(members, lines) {
       el("span", { class: "muted" }, `(${prof} 20${SECONDARY.has(it.skill) ? ", secondary" : ""})`));
   });
   const [kit, rank] = FIRE_COOKING[state.fire];
+  const cooks = members.filter((m) => (m.profs || []).includes(185)).map((m) => m.name);
   rows.push(el("li", { tabindex: 0, "data-tip": "Basic Campfire Kit (Cooking 1) holds 3 features, Journeyman (Cooking 140) 5, Expert (Cooking 220) 10.\nThe fire lasts 15 minutes; so does every feature placed at it." }, icon("inv_camelot_camping_welcomingcampfire", "", 18), " The fire: ", kit, " ",
-    el("span", { class: "muted" }, `(anyone with Cooking ${rank}; Cooking is secondary)`)));
+    el("span", { class: "muted" }, cooks.length ? `(Cooking ${rank}: ${cooks.join(", ")})` : `(anyone with Cooking ${rank}; Cooking is secondary)`)));
   rows.push(el("li", { class: "muted" }, "First Aid, Fishing and Cooking are secondary professions: anyone can add them to their two primary ones."));
   $("profs").replaceChildren(...rows);
 }
@@ -304,7 +364,7 @@ function render() {
     ? "Planning for leveling: rested XP from a Camp Tent counts; mana and spirit weigh more."
     : "Planning for progression: power only; the tent counts for nothing."));
   $("notes").replaceChildren(...notes);
-  renderProfs(members, theory.lines);
+  renderProfs(members, theory);
 
   // the grid
   const head = el("tr", {}, el("th", { scope: "col" }, ""), ...members.map((m) =>

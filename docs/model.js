@@ -136,13 +136,35 @@ export function makeModel(D) {
     return s;
   }
 
-  // the best set of lines, at most `cap` (default min(10, members)), ignoring professions
+  // Lines -> members (each member places at most one; m.can = the lines their professions place, none = any),
+  // or null when the group can't place them all. Members with set professions are tried first.
+  function assign(members, lines) {
+    const order = members.map((m, i) => i).sort((a, b) => (members[a].can ? 0 : 1) - (members[b].can ? 0 : 1));
+    const owner = {};   // member index -> line
+    const lineOf = {};  // line -> member index
+    const canPlace = (i, line) => !members[i].can || members[i].can.includes(line);
+    const tryLine = (line, seen) => {
+      for (const i of order) {
+        if (!canPlace(i, line) || seen.has(i)) continue;
+        seen.add(i);
+        if (owner[i] === undefined || tryLine(owner[i], seen)) { owner[i] = line; lineOf[line] = i; return true; }
+      }
+      return false;
+    };
+    for (const line of lines) if (!tryLine(line, new Set())) return null;
+    for (const [i, line] of Object.entries(owner)) lineOf[line] = +i;
+    return lineOf;
+  }
+
+  // the best set of lines, at most `cap` (default min(10, members)), that the group can place: ignoring
+  // professions, except for members whose professions are set (m.can)
   function theory(members, opts = {}) {
     const copies = members.map((m) => ({ ...m, _p: undefined }));
     const info = prepare(copies, opts);
     const n = LINES.length;
     const k = Math.min(opts.cap || 10, copies.length);
-    let bestS = -1, bestMask = 0;
+    const constrained = copies.some((m) => m.can);
+    let bestS = -1, bestMask = 0, bestAssign = null;
     const camp = {};
     for (let mask = 0; mask < 2 ** n; mask++) {
       let size = 0;
@@ -151,7 +173,10 @@ export function makeModel(D) {
       }
       if (size <= k) {
         const s = score(copies, camp, info);
-        if (s > bestS + 1e-6) { bestS = s; bestMask = mask; }
+        if (s > bestS + 1e-6) {
+          const a = constrained ? assign(copies, Object.keys(camp)) : {};
+          if (a) { bestS = s; bestMask = mask; bestAssign = a; }
+        }
       }
     }
     const lines = LINES.filter((_, i) => bestMask & (1 << i));
@@ -159,7 +184,7 @@ export function makeModel(D) {
     for (const c of copies) {
       if (!info.focus || c.key === info.focus) for (const line of LINES) full += c._p.full[line];
     }
-    return { lines, pct: full > 0 ? bestS / full : 0 };
+    return { lines, pct: full > 0 ? bestS / full : 0, assign: constrained ? bestAssign : assign(copies, lines) };
   }
 
   // the plan for a given camp (lines): blessings, cells, coverage, what else would help, the totem note
@@ -215,6 +240,10 @@ export function makeModel(D) {
         key: "p" + (i + 1), name: count[base] > 1 ? `${base} ${count[base]}` : base, class: e.class,
         level: e.level || 60, role: e.role || defaultRole(e.class), talents: {}, planIndex: i,
       };
+      if (e.profs && e.profs.length) {
+        m.profs = e.profs;
+        m.can = LINES.filter((line) => CAMP_ITEM[line] && e.profs.includes(CAMP_ITEM[line].skill));
+      }
       for (const [line, c] of Object.entries(D.class)) {
         if ((c.kind === "talent" || line === "kings") && c.class === m.class && (line !== "crit" || m.role === "caster")) {
           m.talents[line] = true;
@@ -235,7 +264,7 @@ export function makeModel(D) {
     return `+${v} ${unit}`;
   }
 
-  return { theory, planWithCamp, planMembers, gives, campAmounts, classAmounts, CAMP_NAME, CAMP_ITEM, step };
+  return { theory, planWithCamp, planMembers, gives, campAmounts, classAmounts, CAMP_NAME, CAMP_ITEM, step, assign };
 }
 
 // ------------------------------------------------------------------ the plan code (same as the addon)
@@ -243,20 +272,28 @@ const CLASS_CODE = { WARRIOR: "WA", ROGUE: "RO", HUNTER: "HU", MAGE: "MA", WARLO
 const CODE_CLASS = Object.fromEntries(Object.entries(CLASS_CODE).map(([c, k]) => [k, c]));
 const ROLE_CODE = { tank: "t", melee: "m", ranged: "r", caster: "c", healer: "h" };
 const CODE_ROLE = Object.fromEntries(Object.entries(ROLE_CODE).map(([r, k]) => [k, r]));
+// professions in a plan code: skill line -> two letters (upper, lower)
+export const PROF_CODE = { 171: "Al", 164: "Bs", 333: "En", 202: "Eg", 182: "He", 165: "Lw", 186: "Mi", 393: "Sk", 197: "Ta",
+  185: "Co", 129: "Fa", 356: "Fi" };
+const CODE_PROF = Object.fromEntries(Object.entries(PROF_CODE).map(([s, k]) => [k, +s]));
 
 export function exportPlan(roster, goal) {
   const g = goal === "level" ? "L" : goal === "progress" ? "P" : "A";
-  return `SM1:${g}:` + roster.map((e) => (CLASS_CODE[e.class] || "WA") + (ROLE_CODE[e.role] || "m") + Math.floor(e.level || 60)).join(",");
+  return `SM1:${g}:` + roster.map((e) => (CLASS_CODE[e.class] || "WA") + (ROLE_CODE[e.role] || "m") + Math.floor(e.level || 60)
+    + (e.profs && e.profs.length ? "-" + e.profs.map((p) => PROF_CODE[p] || "").join("") : "")).join(",");
 }
 
 export function importPlan(text) {
-  const m = /(?:SM1|CW1):([LPA]):([A-Za-z0-9,]*)/.exec(text || "");   // CW1: from when it was called Campwise
+  const m = /(?:SM1|CW1):([LPA]):([A-Za-z0-9,-]*)/.exec(text || "");   // CW1: from when it was called Campwise
   if (!m) return null;
   const roster = [];
-  for (const [, code, role, level] of m[2].matchAll(/([A-Z]{2})([a-z])(\d+)/g)) {
+  for (const [, code, role, level, profs] of m[2].matchAll(/([A-Z]{2})([a-z])(\d+)(?:-((?:[A-Z][a-z])*))?/g)) {
     const cls = CODE_CLASS[code];
     if (cls && roster.length < PLAN_MAX) {
-      roster.push({ class: cls, role: CODE_ROLE[role] || defaultRole(cls), level: Math.max(1, Math.min(60, +level)) });
+      const e = { class: cls, role: CODE_ROLE[role] || defaultRole(cls), level: Math.max(1, Math.min(60, +level)) };
+      const p = [...(profs || "").matchAll(/[A-Z][a-z]/g)].map((x) => CODE_PROF[x[0]]).filter(Boolean);
+      if (p.length) e.profs = [...new Set(p)];
+      roster.push(e);
     }
   }
   return { roster, goal: m[1] === "L" ? "level" : m[1] === "P" ? "progress" : null };
