@@ -6,7 +6,7 @@ const CLASS_ICON = (c) => ICON("classicon_" + c.toLowerCase());
 const CLASS_NAME = (c) => c[0] + c.slice(1).toLowerCase();
 const PROFESSION = { 129: "First Aid", 164: "Blacksmithing", 165: "Leatherworking", 171: "Alchemy", 182: "Herbalism",
   185: "Cooking", 186: "Mining", 197: "Tailoring", 202: "Engineering", 333: "Enchanting", 356: "Fishing", 393: "Skinning" };
-const STORE = "smores-plan";
+const STORE = "smores-last";   // the last group (was "smores-plan" until the level 30 leveling default)
 const $ = (id) => document.getElementById(id);
 const el = (tag, attrs = {}, ...kids) => {
   const e = document.createElement(tag);
@@ -42,6 +42,7 @@ try {
   const saved = JSON.parse(localStorage.getItem(STORE) || "null");
   if (saved && Array.isArray(saved.roster)) state = { ...state, ...saved };
 } catch { /* storage blocked: start from the default */ }
+try { localStorage.removeItem("smores-plan"); } catch { /* the old key: a level 60 group from before */ }
 const fromHash = importPlan(decodeURIComponent(location.hash.slice(1)));
 if (fromHash && fromHash.roster.length) { state.roster = fromHash.roster; state.goal = fromHash.goal || "auto"; }
 
