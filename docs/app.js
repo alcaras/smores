@@ -25,14 +25,18 @@ const M = makeModel(D);
 $("build").textContent = "build " + D.build;
 
 // ------------------------------------------------------------------ state (saved in this browser, shared by the URL)
+// most players are leveling: a level 30 group, planned for XP
 const DEFAULT = {
   roster: [
-    { class: "WARRIOR", role: "tank", level: 60 }, { class: "ROGUE", role: "melee", level: 60 },
-    { class: "MAGE", role: "caster", level: 60 }, { class: "PRIEST", role: "healer", level: 60 },
-    { class: "PALADIN", role: "healer", level: 60 },
+    { class: "WARRIOR", role: "tank", level: 30 }, { class: "ROGUE", role: "melee", level: 30 },
+    { class: "MAGE", role: "caster", level: 30 }, { class: "PRIEST", role: "healer", level: 30 },
+    { class: "HUNTER", role: "ranged", level: 30 },
   ],
-  goal: "auto", fire: 10, uptime: 70,
+  goal: "level", fire: 10, uptime: 70,
 };
+const SAVED = "smores-saved";   // [{ name, roster, goal, fire, uptime }]
+const SECONDARY = new Set([129, 185, 356]);   // First Aid, Cooking, Fishing: anyone can learn them
+const FIRE_COOKING = { 3: ["Basic Campfire Kit", 1], 5: ["Journeyman Campfire Kit", 140], 10: ["Expert Campfire Kit", 220] };
 let state = structuredClone(DEFAULT);
 try {
   const saved = JSON.parse(localStorage.getItem(STORE) || "null");
@@ -90,10 +94,81 @@ function campCard(line, level) {
   return el("li", { class: "feature" },
     icon(it.icon || "inv_misc_questionmark", "", 36),
     el("div", {},
-      el("div", { class: "fname" }, it.name, " ", el("span", { class: "gives" }, M.gives(line, level))),
-      el("div", { class: "fmeta" }, line === "tent" ? `${prof} 20` : `${prof} 20 · same buff as `,
+      el("div", { class: "fname" }, it.name, " ", el("span", { class: "gives" },
+        line === "tent" ? "rested XP to 5% of a level, once an hour" : M.gives(line, level))),
+      el("div", { class: "fmeta" }, line === "tent" ? `${prof} 20 · for leveling` : `${prof} 20 · same buff as `,
         line === "tent" ? null : el("span", { class: "cbuff" }, icon(cls.icon, "", 14), " ", cls.name))));
 }
+
+// the classes a primary profession usually goes with (armor it makes, what it gathers alongside)
+const PROF_FIT = {
+  165: ["ROGUE", "HUNTER", "DRUID", "SHAMAN"], 393: ["ROGUE", "HUNTER", "DRUID", "SHAMAN"],
+  197: ["MAGE", "PRIEST", "WARLOCK"], 333: ["MAGE", "PRIEST", "WARLOCK"],
+  164: ["WARRIOR", "PALADIN"], 186: ["WARRIOR", "PALADIN", "ROGUE", "HUNTER"],
+  202: ["HUNTER", "WARRIOR", "ROGUE"], 182: ["DRUID", "PRIEST", "MAGE", "WARLOCK"], 171: [],
+};
+
+// hands each camp feature to one member: primary professions to a class that usually takes them, then the
+// secondary ones (First Aid, Fishing) to whoever is left
+function whoBrings(members, lines) {
+  const order = [...lines].sort((a, b) => SECONDARY.has(M.CAMP_ITEM[a].skill) - SECONDARY.has(M.CAMP_ITEM[b].skill));
+  const out = members.map((m) => ({ m, line: null }));
+  for (const line of order) {
+    const fit = PROF_FIT[M.CAMP_ITEM[line].skill] || [];
+    const free = out.filter((o) => !o.line);
+    const pick = free.find((o) => fit.includes(o.m.class)) || free[0];
+    if (pick) pick.line = line;
+  }
+  return out;
+}
+
+function renderProfs(members, lines) {
+  const rows = whoBrings(members, lines).map(({ m, line }) => {
+    const who = [el("img", { src: CLASS_ICON(m.class), alt: "", width: 20, height: 20, class: "ico" }), " ",
+      el("span", { class: "c-" + m.class.toLowerCase() }, m.name)];
+    if (!line) return el("li", {}, ...who, el("span", { class: "muted" }, " free to pick anything"));
+    const it = M.CAMP_ITEM[line];
+    const prof = PROFESSION[it.skill];
+    return el("li", {}, ...who, " → ", icon(it.icon, "", 18), " ", it.name, " ",
+      el("span", { class: "muted" }, `(${prof} 20${SECONDARY.has(it.skill) ? ", secondary" : ""})`));
+  });
+  const [kit, rank] = FIRE_COOKING[state.fire];
+  rows.push(el("li", {}, icon("inv_camelot_camping_welcomingcampfire", "", 18), " The fire: ", kit, " ",
+    el("span", { class: "muted" }, `(anyone with Cooking ${rank}; Cooking is secondary)`)));
+  rows.push(el("li", { class: "muted" }, "First Aid, Fishing and Cooking are secondary professions: anyone can add them to their two primary ones."));
+  $("profs").replaceChildren(...rows);
+}
+
+// ------------------------------------------------------------------ saved groups (this browser)
+function readSaved() {
+  try { return JSON.parse(localStorage.getItem(SAVED) || "[]").filter((s) => s && s.name && Array.isArray(s.roster)); }
+  catch { return []; }
+}
+function writeSaved(list) {
+  try { localStorage.setItem(SAVED, JSON.stringify(list)); return true; } catch { return false; }
+}
+function renderSaved() {
+  const list = readSaved();
+  $("saved").replaceChildren(...list.map((s, i) => el("li", { class: "chip" },
+    el("button", { type: "button", class: "chip-load", title: `Load ${s.name} (${s.roster.length})`, onclick: () => {
+      state = { ...state, roster: structuredClone(s.roster), goal: s.goal || state.goal, fire: s.fire || state.fire,
+        uptime: s.uptime ?? state.uptime };
+      render();
+    } }, s.name, el("span", { class: "muted" }, " " + s.roster.length)),
+    el("button", { type: "button", class: "chip-x", "aria-label": "Delete " + s.name, onclick: () => {
+      const l = readSaved(); l.splice(i, 1); writeSaved(l); renderSaved();
+    } }, "×"))));
+}
+$("save-form").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const name = $("save-name").value.trim();
+  if (!name || !state.roster.length) { $("save-name").focus(); return; }
+  const list = readSaved().filter((s) => s.name !== name);
+  list.unshift({ name, roster: structuredClone(state.roster), goal: state.goal, fire: state.fire, uptime: state.uptime });
+  writeSaved(list.slice(0, 30));
+  $("save-name").value = "";
+  renderSaved();
+});
 
 function render() {
   const members = M.planMembers(state.roster);
@@ -109,6 +184,7 @@ function render() {
 
   if (!members.length) {
     $("camp").replaceChildren(el("li", { class: "empty" }, "Add members above to see their camp."));
+    $("profs").replaceChildren();
     $("notes").replaceChildren();
     $("grid").replaceChildren();
     $("pct").textContent = "0%";
@@ -145,6 +221,7 @@ function render() {
     ? "Planning for leveling: rested XP from a Camp Tent counts; mana and spirit weigh more."
     : "Planning for progression: power only; the tent counts for nothing."));
   $("notes").replaceChildren(...notes);
+  renderProfs(members, theory.lines);
 
   // the grid
   const head = el("tr", {}, el("th", { scope: "col" }, ""), ...members.map((m) =>
@@ -195,4 +272,5 @@ $("code").addEventListener("keydown", (ev) => { if (ev.key === "Enter") load(); 
 $("code").addEventListener("input", () => { $("code-error").hidden = true; });
 
 renderAddButtons();
+renderSaved();
 render();

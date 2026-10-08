@@ -34,9 +34,9 @@
     <div class="section-head">
       <h2 id="roster-h">Group <span id="count" class="muted"></span></h2>
       <div class="tools">
-        <label class="inline">Level <input id="all-level" type="number" min="1" max="60" step="1" value="60"></label>
+        <label class="inline">Level <input id="all-level" type="number" min="1" max="60" step="1" value="30"></label>
         <button id="set-level" type="button">Set all</button>
-        <button id="preset5" type="button">5-man</button>
+        <button id="preset5" type="button">Starter group</button>
         <button id="clear" type="button">Clear</button>
       </div>
     </div>
@@ -45,6 +45,14 @@
       <span class="muted">Add</span>
       <div id="add-classes" class="class-picks"></div>
     </div>
+    <div class="saved-row">
+      <form id="save-form" class="save-form">
+        <input id="save-name" maxlength="40" placeholder="Name this group" aria-label="Group name">
+        <button type="submit">Save group</button>
+      </form>
+      <ul id="saved" class="saved" aria-label="Saved groups"></ul>
+    </div>
+    <p class="hint">This browser remembers your last group and your saved ones.</p>
   </section>
 
   <section class="options" aria-label="Options">
@@ -77,6 +85,12 @@
     </div>
     <ul id="camp" class="camp"></ul>
     <div id="notes" class="notes"></div>
+  </section>
+
+  <section class="profs" aria-labelledby="profs-h">
+    <h2 id="profs-h">Who brings what</h2>
+    <p class="hint">The professions that would let this group place that camp: one feature per person an hour.</p>
+    <ul id="profs" class="prof-list"></ul>
   </section>
 
   <section class="grid-wrap" aria-labelledby="grid-h">
