@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S'mores Planner</title>
+<meta name="description" content="Plan your WoW Forever camp: which camp features and blessings give a party or raid the most.">
+<link rel="icon" href="https://wow.zamimg.com/images/wow/icons/small/inv_camelot_camping_welcomingcampfire.jpg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <img src="https://wow.zamimg.com/images/wow/icons/medium/inv_camelot_camping_welcomingcampfire.jpg" alt="" width="36" height="36">
+    <div>
+      <h1>S'mores Planner</h1>
+      <p class="sub">Which camp features and blessings give this group the most, ignoring professions. WoW Forever.</p>
+    </div>
+  </div>
+  <div class="code">
+    <label for="code">Plan code</label>
+    <div class="code-row">
+      <input id="code" spellcheck="false" autocomplete="off" aria-describedby="code-help">
+      <button id="copy" type="button">Copy</button>
+      <button id="load" type="button">Load</button>
+    </div>
+    <p id="code-help" class="hint">In game: <kbd>/smores import &lt;code&gt;</kbd>, or the panel's Code box. Paste a code from the game here and Load.</p>
+    <p id="code-error" class="error" role="alert" hidden></p>
+  </div>
+</header>
+
+<main>
+  <section class="roster" aria-labelledby="roster-h">
+    <div class="section-head">
+      <h2 id="roster-h">Group <span id="count" class="muted"></span></h2>
+      <div class="tools">
+        <label class="inline">Level <input id="all-level" type="number" min="1" max="60" step="1" value="60"></label>
+        <button id="set-level" type="button">Set all</button>
+        <button id="preset5" type="button">5-man</button>
+        <button id="clear" type="button">Clear</button>
+      </div>
+    </div>
+    <ol id="members" class="members"></ol>
+    <div class="add-row">
+      <span class="muted">Add</span>
+      <div id="add-classes" class="class-picks"></div>
+    </div>
+  </section>
+
+  <section class="options" aria-label="Options">
+    <fieldset>
+      <legend>Goal</legend>
+      <div class="seg" id="goal">
+        <button type="button" data-v="auto">By level</button>
+        <button type="button" data-v="level">Leveling</button>
+        <button type="button" data-v="progress">Progression</button>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Campfire</legend>
+      <div class="seg" id="fire">
+        <button type="button" data-v="3">Basic 3</button>
+        <button type="button" data-v="5">Journeyman 5</button>
+        <button type="button" data-v="10">Expert 10</button>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Totem uptime <output id="uptime-out">70%</output></legend>
+      <input id="uptime" type="range" min="0" max="100" step="5" value="70">
+    </fieldset>
+  </section>
+
+  <section class="result" aria-labelledby="camp-h">
+    <div class="section-head">
+      <h2 id="camp-h">Camp</h2>
+      <p class="cover"><span id="pct">0%</span> of a full buff set</p>
+    </div>
+    <ul id="camp" class="camp"></ul>
+    <div id="notes" class="notes"></div>
+  </section>
+
+  <section class="grid-wrap" aria-labelledby="grid-h">
+    <h2 id="grid-h">Coverage</h2>
+    <p class="hint">Each member's share of a full buff: <span class="k k-class">class buff</span> <span class="k k-camp">camp copy</span> <span class="k k-missing">missing</span>, blank where it does nothing for that role.</p>
+    <div class="grid-scroll"><table id="grid" class="grid"></table></div>
+  </section>
+</main>
+
+<footer class="foot">
+  <p>Data from the WoW Forever client (<span id="build"></span>). Values are estimates; class buffs beat their camp copies, and each member drops at most one feature an hour. Icons: World of Warcraft &copy; Blizzard Entertainment, via Wowhead. A fan tool, not affiliated with Blizzard. <a href="https://github.com/alcaras/smores">The addon and its source</a>.</p>
+</footer>
+<script type="module" src="app.js"></script>
+</body>
+</html>

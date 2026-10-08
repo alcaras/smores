@@ -1,0 +1,1005 @@
+{
+ "build": "1.60.1.70170",
+ "camp": {
+  "ap": {
+   "aura": 1230164,
+   "comp": {
+    "ap": [
+     [
+      1,
+      12
+     ],
+     [
+      12,
+      20
+     ],
+     [
+      22,
+      32
+     ],
+     [
+      32,
+      49
+     ],
+     [
+      42,
+      67
+     ],
+     [
+      52,
+      90
+     ]
+    ]
+   }
+  },
+  "crit": {
+   "aura": 1229519,
+   "comp": {
+    "crit": [
+     [
+      1,
+      2
+     ]
+    ]
+   }
+  },
+  "int": {
+   "aura": 1229513,
+   "comp": {
+    "int": [
+     [
+      1,
+      2
+     ],
+     [
+      14,
+      6
+     ],
+     [
+      28,
+      12
+     ],
+     [
+      42,
+      18
+     ],
+     [
+      56,
+      25
+     ]
+    ]
+   }
+  },
+  "kings": {
+   "aura": 1230098,
+   "comp": {
+    "pct": [
+     [
+      1,
+      8
+     ]
+    ]
+   }
+  },
+  "motw": {
+   "aura": 1230653,
+   "comp": {
+    "armor": [
+     [
+      1,
+      28
+     ],
+     [
+      10,
+      71
+     ],
+     [
+      20,
+      114
+     ],
+     [
+      30,
+      163
+     ],
+     [
+      40,
+      211
+     ],
+     [
+      50,
+      260
+     ],
+     [
+      60,
+      308
+     ]
+    ],
+    "res": [
+     [
+      1,
+      0
+     ],
+     [
+      30,
+      6
+     ],
+     [
+      40,
+      12
+     ],
+     [
+      50,
+      16
+     ],
+     [
+      60,
+      22
+     ]
+    ],
+    "stat": [
+     [
+      1,
+      0
+     ],
+     [
+      10,
+      2
+     ],
+     [
+      20,
+      4
+     ],
+     [
+      30,
+      7
+     ],
+     [
+      40,
+      9
+     ],
+     [
+      50,
+      12
+     ],
+     [
+      60,
+      13
+     ]
+    ]
+   }
+  },
+  "mp5": {
+   "aura": 1230587,
+   "comp": {
+    "mp5": [
+     [
+      1,
+      10
+     ],
+     [
+      24,
+      15
+     ],
+     [
+      34,
+      20
+     ],
+     [
+      44,
+      24
+     ],
+     [
+      54,
+      29
+     ]
+    ]
+   }
+  },
+  "spi": {
+   "aura": 1229718,
+   "comp": {
+    "spi": [
+     [
+      1,
+      14
+     ],
+     [
+      40,
+      19
+     ],
+     [
+      50,
+      27
+     ],
+     [
+      60,
+      32
+     ]
+    ]
+   }
+  },
+  "sta": {
+   "aura": 1230124,
+   "comp": {
+    "sta": [
+     [
+      1,
+      3
+     ],
+     [
+      12,
+      8
+     ],
+     [
+      24,
+      21
+     ],
+     [
+      36,
+      34
+     ],
+     [
+      48,
+      45
+     ],
+     [
+      60,
+      56
+     ]
+    ]
+   }
+  },
+  "str": {
+   "aura": 1230172,
+   "comp": {
+    "str": [
+     [
+      1,
+      6
+     ],
+     [
+      24,
+      11
+     ],
+     [
+      38,
+      20
+     ],
+     [
+      52,
+      34
+     ]
+    ]
+   }
+  },
+  "tent": {
+   "aura": 1229451,
+   "comp": {}
+  }
+ },
+ "class": {
+  "ap": {
+   "auras": [
+    19740,
+    19834,
+    19835,
+    19836,
+    19837,
+    19838,
+    25291,
+    25782,
+    25916
+   ],
+   "class": "PALADIN",
+   "comp": {
+    "ap": [
+     [
+      4,
+      14
+     ],
+     [
+      12,
+      25
+     ],
+     [
+      22,
+      40
+     ],
+     [
+      32,
+      61
+     ],
+     [
+      42,
+      83
+     ],
+     [
+      52,
+      112
+     ],
+     [
+      60,
+      133
+     ]
+    ]
+   },
+   "icon": "spell_holy_fistofjustice",
+   "kind": "blessing",
+   "name": "Might"
+  },
+  "crit": {
+   "auras": [
+    24907
+   ],
+   "class": "DRUID",
+   "comp": {
+    "crit": [
+     [
+      40,
+      3
+     ]
+    ]
+   },
+   "icon": "spell_nature_forceofnature",
+   "kind": "talent",
+   "name": "Moonkin Aura",
+   "talent": 24858
+  },
+  "int": {
+   "auras": [
+    1459,
+    1460,
+    1461,
+    10156,
+    10157,
+    23028
+   ],
+   "class": "MAGE",
+   "comp": {
+    "int": [
+     [
+      1,
+      2
+     ],
+     [
+      14,
+      7
+     ],
+     [
+      28,
+      15
+     ],
+     [
+      42,
+      22
+     ],
+     [
+      56,
+      31
+     ]
+    ]
+   },
+   "icon": "spell_holy_magicalsentry",
+   "kind": "all",
+   "name": "Arcane Intellect"
+  },
+  "kings": {
+   "auras": [
+    20217,
+    25898
+   ],
+   "class": "PALADIN",
+   "comp": {
+    "pct": [
+     [
+      20,
+      10
+     ]
+    ]
+   },
+   "icon": "spell_magic_magearmor",
+   "kind": "blessing",
+   "name": "Kings",
+   "talent": 20217
+  },
+  "motw": {
+   "auras": [
+    1126,
+    5232,
+    6756,
+    5234,
+    8907,
+    9884,
+    9885,
+    21849,
+    21850
+   ],
+   "class": "DRUID",
+   "comp": {
+    "armor": [
+     [
+      1,
+      34
+     ],
+     [
+      10,
+      88
+     ],
+     [
+      20,
+      142
+     ],
+     [
+      30,
+      203
+     ],
+     [
+      40,
+      263
+     ],
+     [
+      50,
+      324
+     ],
+     [
+      60,
+      385
+     ]
+    ],
+    "res": [
+     [
+      30,
+      7
+     ],
+     [
+      40,
+      14
+     ],
+     [
+      50,
+      20
+     ],
+     [
+      60,
+      27
+     ]
+    ],
+    "stat": [
+     [
+      10,
+      3
+     ],
+     [
+      20,
+      5
+     ],
+     [
+      30,
+      8
+     ],
+     [
+      40,
+      11
+     ],
+     [
+      50,
+      14
+     ],
+     [
+      60,
+      16
+     ]
+    ]
+   },
+   "icon": "spell_nature_regeneration",
+   "kind": "all",
+   "name": "Mark of the Wild"
+  },
+  "mp5": {
+   "auras": [
+    19742,
+    19850,
+    19852,
+    19853,
+    19854,
+    25290,
+    25894,
+    25918
+   ],
+   "class": "PALADIN",
+   "comp": {
+    "mp5": [
+     [
+      14,
+      12
+     ],
+     [
+      24,
+      18
+     ],
+     [
+      34,
+      24
+     ],
+     [
+      44,
+      30
+     ],
+     [
+      54,
+      36
+     ],
+     [
+      60,
+      40
+     ]
+    ]
+   },
+   "icon": "spell_holy_sealofwisdom",
+   "kind": "blessing",
+   "name": "Wisdom"
+  },
+  "spi": {
+   "auras": [
+    14752,
+    14818,
+    14819,
+    27841,
+    27681
+   ],
+   "class": "PRIEST",
+   "comp": {
+    "spi": [
+     [
+      30,
+      17
+     ],
+     [
+      40,
+      23
+     ],
+     [
+      50,
+      33
+     ],
+     [
+      60,
+      40
+     ]
+    ]
+   },
+   "icon": "spell_holy_divinespirit",
+   "kind": "talent",
+   "name": "Divine Spirit",
+   "talent": 14752
+  },
+  "sta": {
+   "auras": [
+    1243,
+    1244,
+    1245,
+    2791,
+    10937,
+    10938,
+    21562,
+    21564
+   ],
+   "class": "PRIEST",
+   "comp": {
+    "sta": [
+     [
+      1,
+      4
+     ],
+     [
+      12,
+      10
+     ],
+     [
+      24,
+      26
+     ],
+     [
+      36,
+      42
+     ],
+     [
+      48,
+      56
+     ],
+     [
+      60,
+      70
+     ]
+    ]
+   },
+   "icon": "spell_holy_wordfortitude",
+   "kind": "all",
+   "name": "Fortitude"
+  },
+  "str": {
+   "auras": [
+    8076,
+    8162,
+    8163,
+    10441,
+    25362
+   ],
+   "class": "SHAMAN",
+   "comp": {
+    "str": [
+     [
+      10,
+      7
+     ],
+     [
+      24,
+      14
+     ],
+     [
+      38,
+      25
+     ],
+     [
+      52,
+      42
+     ],
+     [
+      60,
+      53
+     ]
+    ]
+   },
+   "icon": "spell_nature_earthbindtotem",
+   "kind": "totem",
+   "name": "Strength of Earth"
+  }
+ },
+ "items": {
+  "279938": {
+   "icon": "inv_misc_kobysstools_knifetrap_color3",
+   "line": "crit",
+   "name": "Trapper's Workbench",
+   "rank": 300,
+   "skill": 393,
+   "spell": 1307397,
+   "tier": 3
+  },
+  "279940": {
+   "icon": "inv_misc_potiona3",
+   "line": "sta",
+   "name": "Toxin Study",
+   "rank": 140,
+   "skill": 129,
+   "spell": 1307396,
+   "tier": 2
+  },
+  "279941": {
+   "icon": "inv_10_skinning_leather_rarehide_color1",
+   "line": "tent",
+   "name": "Tanning Rack",
+   "rank": 140,
+   "skill": 165,
+   "spell": 1307395,
+   "tier": 2
+  },
+  "279943": {
+   "icon": "10prof_table_tailoring01",
+   "line": "spi",
+   "name": "Spinning Wheel",
+   "rank": 140,
+   "skill": 197,
+   "spell": 1307393,
+   "tier": 2
+  },
+  "279944": {
+   "icon": "inv_stone_grindingstone_01",
+   "line": "str",
+   "name": "Sharpening Wheel",
+   "rank": 20,
+   "skill": 164,
+   "spell": 1307392,
+   "tier": 1
+  },
+  "279945": {
+   "icon": "inv_tailoring_modifiedcraftingreagent_orange",
+   "line": "tent",
+   "name": "Sewing Machine",
+   "rank": 300,
+   "skill": 165,
+   "spell": 1307391,
+   "tier": 3
+  },
+  "279947": {
+   "icon": "inv_farm_herbseed",
+   "line": "int",
+   "name": "Seed Hybridizer",
+   "rank": 300,
+   "skill": 182,
+   "spell": 1307387,
+   "tier": 3
+  },
+  "279948": {
+   "icon": "inv_misc_powder_iron",
+   "line": "ap",
+   "name": "Rock Garden",
+   "rank": 140,
+   "skill": 186,
+   "spell": 1307386,
+   "tier": 2
+  },
+  "279949": {
+   "icon": "inv_robotpet",
+   "line": "bot",
+   "name": "Repair Bot",
+   "rank": 140,
+   "skill": 202,
+   "spell": 1307385,
+   "tier": 2
+  },
+  "279950": {
+   "icon": "inv_misc_enggizmos_13",
+   "line": "bot",
+   "name": "Reagent Bot",
+   "rank": 20,
+   "skill": 202,
+   "spell": 1307266,
+   "tier": 1
+  },
+  "279951": {
+   "icon": "inv_10_alchemy_incenseholder_color1",
+   "line": "sta",
+   "name": "Plague Doctor's Laboratory",
+   "rank": 300,
+   "skill": 129,
+   "spell": 1307265,
+   "tier": 3
+  },
+  "279952": {
+   "icon": "inv_blacksmithingalloys_red",
+   "line": "ap",
+   "name": "Molten Foundry",
+   "rank": 300,
+   "skill": 186,
+   "spell": 1307264,
+   "tier": 3
+  },
+  "279955": {
+   "icon": "inv_mace_1h_blacksmithing_b_01_black",
+   "line": "str",
+   "name": "Master Forge",
+   "rank": 300,
+   "skill": 164,
+   "spell": 1307261,
+   "tier": 3
+  },
+  "279956": {
+   "icon": "spell_arcane_manatap",
+   "line": "mp5",
+   "name": "Mana Well",
+   "rank": 20,
+   "skill": 171,
+   "spell": 1307259,
+   "tier": 1
+  },
+  "279957": {
+   "icon": "inv_cooking_80_majorfeast",
+   "line": "util",
+   "name": "Cookie's Feast",
+   "rank": 140,
+   "skill": 185,
+   "spell": 1307257
+  },
+  "279959": {
+   "icon": "inv_tailoring_80_tidespraylinen",
+   "line": "spi",
+   "name": "Loom",
+   "rank": 300,
+   "skill": 197,
+   "spell": 1307255,
+   "tier": 3
+  },
+  "279960": {
+   "icon": "inv_misc_rune_06",
+   "line": "ap",
+   "name": "Lodestone",
+   "rank": 20,
+   "skill": 186,
+   "spell": 1307254,
+   "tier": 1
+  },
+  "279961": {
+   "fire": 5,
+   "icon": "inv_camelot_camping_welcomingcampfire",
+   "name": "Journeyman Campfire Kit",
+   "rank": 140,
+   "skill": 185,
+   "spell": 1307252
+  },
+  "279962": {
+   "icon": "inv_misc_candle_02",
+   "line": "int",
+   "name": "Incense Candle",
+   "rank": 20,
+   "skill": 182,
+   "spell": 1307251,
+   "tier": 1
+  },
+  "279964": {
+   "icon": "inv_misc_herb_08",
+   "line": "int",
+   "name": "Greenhouse",
+   "rank": 140,
+   "skill": 182,
+   "spell": 1307248,
+   "tier": 2
+  },
+  "279965": {
+   "icon": "inv_misc_2h_draenorfishingpole_a_01",
+   "line": "kings",
+   "name": "Fishing Rack",
+   "rank": 140,
+   "skill": 356,
+   "spell": 1307247,
+   "tier": 2
+  },
+  "279966": {
+   "icon": "inv_fishingchair",
+   "line": "kings",
+   "name": "Fishing Hut",
+   "rank": 300,
+   "skill": 356,
+   "spell": 1307246,
+   "tier": 3
+  },
+  "279967": {
+   "icon": "inv_magicalfishpet",
+   "line": "kings",
+   "name": "Fish Bowl",
+   "rank": 20,
+   "skill": 356,
+   "spell": 1307245,
+   "tier": 1
+  },
+  "279968": {
+   "icon": "inv_misc_bandage_11",
+   "line": "sta",
+   "name": "First Aid Kit",
+   "rank": 20,
+   "skill": 129,
+   "spell": 1307244,
+   "tier": 1
+  },
+  "279969": {
+   "icon": "inv_misc_book_03",
+   "line": "crit",
+   "name": "Field Guide",
+   "rank": 140,
+   "skill": 393,
+   "spell": 1307243,
+   "tier": 2
+  },
+  "279970": {
+   "icon": "inv_alchemy_90_cauldron",
+   "line": "mp5",
+   "name": "Fermenter",
+   "rank": 140,
+   "skill": 171,
+   "spell": 1307242,
+   "tier": 2
+  },
+  "279972": {
+   "icon": "inv_banner_03",
+   "line": "spi",
+   "name": "Faction Banner",
+   "rank": 20,
+   "skill": 197,
+   "spell": 1307240,
+   "tier": 1
+  },
+  "279973": {
+   "icon": "inv_banner_03",
+   "line": "spi",
+   "name": "Faction Banner",
+   "rank": 20,
+   "skill": 197,
+   "spell": 1307239,
+   "tier": 1
+  },
+  "279974": {
+   "fire": 10,
+   "icon": "inv_camelot_camping_welcomingcampfire",
+   "name": "Expert Campfire Kit",
+   "rank": 220,
+   "skill": 185,
+   "spell": 1307237
+  },
+  "279976": {
+   "icon": "inv_10_enchanting2_magicswirl_bronze",
+   "line": "motw",
+   "name": "Enchanted Lute",
+   "rank": 20,
+   "skill": 333,
+   "spell": 1307234,
+   "tier": 1
+  },
+  "279978": {
+   "icon": "inv_misc_leatherscrap_01",
+   "line": "tent",
+   "name": "Camp Tent",
+   "rank": 20,
+   "skill": 165,
+   "spell": 1307230,
+   "tier": 1
+  },
+  "279979": {
+   "icon": "inv_crate_01",
+   "line": "crit",
+   "name": "Camp Chair",
+   "rank": 20,
+   "skill": 393,
+   "spell": 1307229,
+   "tier": 1
+  },
+  "279981": {
+   "fire": 3,
+   "icon": "inv_camelot_camping_welcomingcampfire",
+   "name": "Basic Campfire Kit",
+   "rank": 1,
+   "skill": 185,
+   "spell": 1307227
+  },
+  "279982": {
+   "icon": "achievement_cooking_masteroftheoven",
+   "line": "util",
+   "name": "Iron Oven",
+   "rank": 300,
+   "skill": 185,
+   "spell": 1307226
+  },
+  "279985": {
+   "icon": "inv_eng_bottledelements",
+   "line": "motw",
+   "name": "Arcane Salvager",
+   "rank": 140,
+   "skill": 333,
+   "spell": 1307223,
+   "tier": 2
+  },
+  "279987": {
+   "icon": "inv_enchanting_modifiedcraftingreagent_indigo",
+   "line": "motw",
+   "name": "Arcane Forge",
+   "rank": 300,
+   "skill": 333,
+   "spell": 1307176,
+   "tier": 3
+  },
+  "279988": {
+   "icon": "inv_blacksmith_anvil",
+   "line": "str",
+   "name": "Anvil",
+   "rank": 140,
+   "skill": 164,
+   "spell": 1307175,
+   "tier": 2
+  },
+  "279989": {
+   "icon": "inv_10_specialization_professionbook_engineering_color1",
+   "line": "util",
+   "name": "Anarchist's Workbench",
+   "rank": 300,
+   "skill": 202,
+   "spell": 1307174
+  },
+  "279990": {
+   "icon": "10prof_portabletable_alchemy01",
+   "line": "mp5",
+   "name": "Alchemy Laboratory",
+   "rank": 300,
+   "skill": 171,
+   "spell": 1307172,
+   "tier": 3
+  }
+ }
+}
