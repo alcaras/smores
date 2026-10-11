@@ -47,7 +47,9 @@ end
 -- with the text under it.
 local function tip(frame, fn)
 	frame:SetScript("OnEnter", function(self)
-		local t = type(fn) == "function" and fn(self) or fn
+		-- not `and fn(self) or fn`: a function that returns nothing would fall through to the function itself
+		local t = fn
+		if type(fn) == "function" then t = fn(self) end
 		if not t and not self.itemID then return end
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 		if self.itemID then
