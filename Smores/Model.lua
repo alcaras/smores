@@ -11,8 +11,9 @@ ns.LINE_NAME = {
 }
 ns.BLESSINGS = { "kings", "ap", "mp5" }
 ns.CAMP_NAME = {}   -- line -> tier 1 feature name ("Fish Bowl")
+ns.CAMP_SKILL = {}  -- line -> the profession that crafts it (one per line: Fishing for every Fish Bowl tier)
 for _, it in pairs(D.items) do
-	if it.tier == 1 and it.line then ns.CAMP_NAME[it.line] = it.name end
+	if it.tier == 1 and it.line then ns.CAMP_NAME[it.line], ns.CAMP_SKILL[it.line] = it.name, it.skill end
 end
 
 -- How much one point of each stat is worth to a role. Rough on purpose: the plan only needs the order right.

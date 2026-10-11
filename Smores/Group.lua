@@ -83,6 +83,52 @@ function ns.LinesForProfs(profs)
 	return lines
 end
 
+-- the lowest-rank item of a buff line that one of these professions makes but whose rank its skill does not reach yet
+function ns.NextItem(profs, line)
+	local best
+	for id, it in pairs(D.items) do
+		local have = profs[it.skill]
+		if it.line == line and have and have < it.rank then
+			local b = best and D.items[best]
+			if not b or it.rank < b.rank or (it.rank == b.rank and id < best) then best = id end
+		end
+	end
+	return best
+end
+
+-- what each member with nothing to drop could craft for the lines the group needs: {[key] = { id, line, now }}.
+-- now = their skill already reaches the item's rank; otherwise it is the next rank up. Each needed line goes to one
+-- member, best gain first; those who can craft now are served before those who have to skill up.
+function ns.CraftFor(plan, members)
+	local out, taken = {}, {}
+	local function free(m)
+		return m.known and m.profs and not plan.drops[m.key] and not out[m.key] and (m.cooldown or 0) <= 0
+	end
+	for _, m in ipairs(members) do
+		if free(m) then
+			local can = ns.LinesForProfs(m.profs)
+			for _, n in ipairs(plan.need) do
+				if not taken[n.line] and can[n.line] then
+					out[m.key], taken[n.line] = { id = can[n.line], line = n.line, now = true }, true
+					break
+				end
+			end
+		end
+	end
+	for _, m in ipairs(members) do
+		if free(m) then
+			for _, n in ipairs(plan.need) do
+				local id = not taken[n.line] and ns.NextItem(m.profs, n.line)
+				if id then
+					out[m.key], taken[n.line] = { id = id, line = n.line, now = false }, true
+					break
+				end
+			end
+		end
+	end
+	return out
+end
+
 -- copies of the members as if everyone carried the best item their professions allow (unknown professions: as is)
 function ns.IdealMembers(members)
 	local out = {}

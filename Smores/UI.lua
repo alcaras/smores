@@ -11,7 +11,12 @@ local LAYOUT = {
 	point = { "CENTER", "UIParent", "CENTER", 260, 80 },
 }
 ns.LAYOUT = LAYOUT
-local GRAY, GREEN, BLUE, RED = "|cff9d9d9d", "|cff5fd35f", "|cff6fa8ff", "|cffe0605a"
+local GRAY, GREEN, BLUE, RED, ORANGE = "|cff9d9d9d", "|cff5fd35f", "|cff6fa8ff", "|cffe0605a", "|cffffa040"
+-- the professions that make camp items (every camp item is crafted with its profession's recipe)
+local PROFESSION = { [129] = "First Aid", [164] = "Blacksmithing", [165] = "Leatherworking", [171] = "Alchemy",
+	[182] = "Herbalism", [185] = "Cooking", [186] = "Mining", [197] = "Tailoring", [202] = "Engineering",
+	[333] = "Enchanting", [356] = "Fishing", [393] = "Skinning" }
+ns.PROFESSION = PROFESSION
 local ROLE_SHORT = { tank = "tank", melee = "melee", ranged = "ranged", caster = "caster", healer = "healer" }
 
 local function classColor(class)
@@ -92,7 +97,8 @@ local NOTE_TIPS = {
 local WHY_TIPS = {
 	["no addon"] = "No S'mores\nThe planner can't see their bags or cooldown. They still get every buff at the fire.",
 	["on cooldown"] = "On cooldown\nEach player places one camp feature an hour.",
-	["no camp items"] = "No camp items\nNothing in their bags that their professions can place.",
+	["no camp items"] = "No camp items\nNothing in their bags that their professions can place, and nothing the group "
+		.. "needs that their professions make.",
 	["keep cooldown"] = "Keep the cooldown\nNothing they carry adds anything to this camp.",
 }
 
@@ -359,6 +365,7 @@ function ns.Render(state)
 	for _, m in ipairs(members) do
 		if #members <= maxRows or m.self or plan.drops[m.key] then list[#list + 1] = m else hidden = hidden + 1 end
 	end
+	local craft = not state.planMode and ns.CraftFor(plan, members) or {}
 	for i, r in ipairs(f.rows) do
 		local m = list[i]
 		r.nameBtn.index, r.remove.index = m and m.planIndex, m and m.planIndex
@@ -387,9 +394,11 @@ function ns.Render(state)
 			r.role.role = m.role
 			r.role.label:SetText(GRAY .. ROLE_SHORT[m.role] .. "|r")
 			r.itemBtn.itemID = nil
+			local c = not line and craft[m.key]
 			if line then
 				local id = m.lines[line]
 				r.icon:SetTexture(C_Item.GetItemIconByID(id))
+				r.icon:SetDesaturated(false)
 				r.icon:Show()
 				r.item:SetText(D.items[id].name)
 				local n = 0
@@ -403,6 +412,25 @@ function ns.Render(state)
 					and "S'mores: tops up rested XP to 5% of a level for everyone sitting nearby, once an hour each."
 					or ("S'mores: " .. ns.Gives(line, state.level) .. " for " .. n .. (n == 1 and " member" or " members")
 						.. ". Same buff as " .. D.class[line].name .. "; the higher one counts.")
+			elseif c then
+				-- not in their bags: what to craft for the group, and with which profession
+				local it, prof = D.items[c.id], PROFESSION[D.items[c.id].skill] or "its profession"
+				local have = m.profs[it.skill] or 0
+				r.icon:SetTexture(C_Item.GetItemIconByID(c.id))
+				r.icon:SetDesaturated(not c.now)
+				r.icon:Show()
+				r.itemBtn.itemID = c.id
+				if c.now then
+					r.item:SetText(ORANGE .. it.name .. "|r")
+					r.gives:SetText(ns.Gives(c.line, state.level))
+					r.itemBtn.tipText = ("S'mores: not in %s's bags. Craft it with %s (%d, they have %d): %s, which "
+						.. "nobody here brings."):format(m.name, prof, it.rank, have, ns.Gives(c.line, state.level))
+				else
+					r.item:SetText(GRAY .. it.name .. "|r")
+					r.gives:SetText(GRAY .. prof .. "|r")   -- the rank goes in the status column ("skill 20")
+					r.itemBtn.tipText = ("S'mores: %s's %s is %d; at %d they can craft and place it: %s, which nobody "
+						.. "here brings."):format(m.name, prof, have, it.rank, ns.Gives(c.line, state.level))
+				end
 			else
 				r.icon:Hide()
 				local why
@@ -418,12 +446,16 @@ function ns.Render(state)
 			if line and state.applied[line] then st = GREEN .. "placed|r"
 			elseif not m.known then st = GRAY .. "?|r"
 			elseif (m.cooldown or 0) > 0 then st = GRAY .. minutes(m.cooldown) .. "|r"
-			elseif line then st = "ready" else st = "" end
+			elseif line then st = "ready"
+			elseif c then st = c.now and (ORANGE .. "craft|r") or (GRAY .. "skill " .. D.items[c.id].rank .. "|r")
+			else st = "" end
 			r.status:SetText(st)
 			if line and state.applied[line] then r.statusTip.tipText = "Placed\nThe buff is on someone in the group."
 			elseif not m.known then r.statusTip.tipText = "Unknown\nNo S'mores: their cooldown can't be read."
 			elseif (m.cooldown or 0) > 0 then r.statusTip.tipText = "Cooldown\nMinutes until they can place another feature."
 			elseif line then r.statusTip.tipText = "Ready\nThey can place it now."
+			elseif c and c.now then r.statusTip.tipText = "Craft\nTheir profession makes it; it is not in their bags yet."
+			elseif c then r.statusTip.tipText = "Skill up\nThe skill their profession needs to make it."
 			else r.statusTip.tipText = nil end
 			r:Show()
 		else
@@ -447,7 +479,9 @@ function ns.Render(state)
 		local t = {}
 		for i = 1, math.min(3, #plan.need) do
 			local line = plan.need[i].line
-			t[#t + 1] = ns.CAMP_NAME[line] .. " " .. GRAY .. ns.Gives(line, state.level) .. "|r"
+			local prof = PROFESSION[ns.CAMP_SKILL[line]]
+			t[#t + 1] = ns.CAMP_NAME[line] .. " " .. GRAY .. (prof and ("(" .. prof .. ") ") or "")
+				.. ns.Gives(line, state.level) .. "|r"
 		end
 		notes[#notes + 1] = (state.planMode and "Also  " or "Need  ") .. table.concat(t, ", ")
 	end
@@ -465,7 +499,8 @@ function ns.Render(state)
 		notes[#notes + 1] = ("Totem  Strength of Earth ~%d Str at %d%% uptime, a Sharpening Wheel %d"):format(
 			math.floor(plan.totem.soe + 0.5), math.floor((state.uptime or 0.7) * 100 + 0.5), plan.totem.wheel)
 	end
-	-- the plan if everyone carried their professions' best item: who would drop something not in their bags
+	-- the plan if everyone carried their professions' best item: who would drop something not in their bags (those with
+	-- nothing to drop now show what to craft in their row instead)
 	local ideal = state.ideal
 	if ideal then
 		local t = {}
@@ -473,7 +508,7 @@ function ns.Render(state)
 			local best = ideal.drops[im.key]
 			local m
 			for _, x in ipairs(members) do if x.key == im.key then m = x end end
-			if best and m and best ~= plan.drops[m.key] and not (m.lines and m.lines[best]) then
+			if best and m and plan.drops[m.key] and best ~= plan.drops[m.key] and not (m.lines and m.lines[best]) then
 				t[#t + 1] = m.name .. ": " .. D.items[im.lines[best]].name
 			end
 		end
