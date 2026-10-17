@@ -58,18 +58,19 @@ function ns.InCombat()
 	return true
 end
 
--- A member's key is the character name alone, from a unit and from an addon message's sender alike. Forever's UnitName
--- returns the first name and the SURNAME ("Alcara", "Argenta"; AlcCore's Core.FullName), while a sender is
--- "Alcara-ClassicBetaPvE": the old "Name-<second value>" key never matched anyone with a surname (2026-10-16, every
--- copy showed the others as "no addon"). Two members of one group with the same first name are rare enough.
+-- A member's key is the first name alone, from a unit and from an addon message's sender alike. Forever's UnitName
+-- returns the first name and the SURNAME ("Alcara", "Argenta"; AlcCore's Core.FullName), and a CHAT_MSG_ADDON sender
+-- is the full name with a space, "Alcara Argenta" (seen in game 2026-10-16; elsewhere "Name-Realm"). Keys built from
+-- either never matched, so every copy showed the others as "no addon". Same first names in one group are rare enough.
+local function firstName(s) return s:match("^[^ %-]+") or s end
 function ns.UnitKey(unit)
 	local name = UnitName(unit)
 	-- the secret test FIRST: `not name` on a secret name throws (a party member's name in a restricted instance)
 	if secret(name) or not name then return nil end
-	return (name:gsub("%-.*", ""))
+	return firstName(name)
 end
 function ns.SenderKey(sender)
-	return (sender:gsub("%-.*", ""))
+	return firstName(sender)
 end
 
 -- ---------------------------------------------------------------- you

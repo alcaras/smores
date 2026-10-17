@@ -54,4 +54,4 @@ inside). On the beta that is `World of Warcraft\_classic_beta_\Interface\AddOns`
 2026) has its own folder under `World of Warcraft`, with its own `Interface\AddOns`.
 New versions: https://github.com/alcaras/smores/releases
 
-Version 0.4.0, made for the live launch. Report what looks wrong, with a screenshot of the panel.
+Version 0.4.1, made for the live launch. Report what looks wrong, with a screenshot of the panel.

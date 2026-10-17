@@ -5,7 +5,8 @@ local ADDON, ns = ...
 local D = ns.DATA
 local f = ns.frame
 
-local CAMPFIRE_NEARBY, WELCOMING = 1283391, 1229739   -- auras: smoke of a fire nearby / sitting at a fire
+-- auras: smoke of a fire nearby; sitting at a fire (two "Welcoming Campfire" spells, the second lets you craft too)
+local FIRE_AURAS = { 1283391, 1229739, 1289723 }
 local REFRESH_EVERY = 5      -- seconds, only while the panel is open
 local HELLO_GAP = 2          -- seconds between two of our addon messages
 
@@ -271,7 +272,7 @@ end
 -- ---------------------------------------------------------------- opening by itself at a fire
 local function nearFire()
 	if ns.InCombat() or not C_UnitAuras.GetPlayerAuraBySpellID then return false end
-	for _, id in ipairs({ CAMPFIRE_NEARBY, WELCOMING }) do
+	for _, id in ipairs(FIRE_AURAS) do
 		local ok, aura = pcall(C_UnitAuras.GetPlayerAuraBySpellID, id)   -- pcall: restricted aura reads can throw
 		if ok and aura ~= nil and not ns.secret(aura) then return true end
 	end
@@ -343,8 +344,11 @@ ev:SetScript("OnEvent", function(_, event, a1, a2, a3, a4)
 			end)
 		end
 		onRoster()
+		-- logged in (or reloaded) next to a fire: no aura changes, so look once the auras and the group are in
+		C_Timer.After(3, checkFire)
 	elseif event == "GROUP_ROSTER_UPDATE" then
 		onRoster()
+		checkFire()   -- joined a group at a fire
 	elseif event == "BAG_UPDATE_DELAYED" or event == "SKILL_LINES_CHANGED" or event == "PLAYER_LEVEL_UP" then
 		rescanSelf()
 		sendHello(false)
