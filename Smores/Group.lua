@@ -9,18 +9,66 @@ local FEATURE_SPELLS = {}   -- use spell -> itemID (placing one starts the share
 for id, it in pairs(D.items) do FEATURE_SPELLS[it.spell] = id end
 ns.FEATURE_SPELLS = FEATURE_SPELLS
 
+-- ---------------------------------------------------------------- features at the fire you hovered
+-- The placed features are game objects (a few, like the Greenhouse, creatures); an addon cannot list them, but the
+-- tooltip of what is under the mouse names them. Every tier carries its item's name and keeps the tier 1 buff.
+-- (The object names are server-side, not in the client's tables: assumed to match the items, see NOTES.md.)
+local FEATURE_LINE = {}   -- lower-case feature name -> buff line
+for _, it in pairs(D.items) do
+	if it.line and ns.LINE_NAME[it.line] then FEATURE_LINE[it.name:lower()] = it.line end
+end
+local HERE_FOR = 15 * 60   -- a placed feature lasts 15 min (1307254 and the rest)
+ns.here = {}               -- [line] = GetTime() it is forgotten
+
+-- a hovered name; true when it is a camp feature seen for the first time
+function ns.SeeFeature(name)
+	local line = type(name) == "string" and FEATURE_LINE[name:lower()]
+	if not line then return false end
+	local new = not ns.here[line]
+	ns.here[line] = GetTime() + HERE_FOR
+	return new
+end
+
+-- the features still standing: {[line] = true}
+function ns.Here()
+	local out, now = {}, GetTime()
+	for line, untilT in pairs(ns.here) do
+		if untilT > now then out[line] = true else ns.here[line] = nil end
+	end
+	return out
+end
+
 local function secret(v) return issecretvalue and issecretvalue(v) or false end
 ns.secret = secret
 
--- "Name" for your realm, "Name-Realm" otherwise: the same key from a unit and from an addon message's sender
+-- In combat? The global InCombatLockdown, else C_RestrictedActions.InCombatLockdown (builds 69913 and 69977 moved
+-- the call between the two), else UnitAffectingCombat; an unreadable answer counts as in combat (wait, never fail).
+-- S'mores has no AlcCore: this mirrors AlcCore's Core.Lockdown (2026-10-16). A bare InCombatLockdown() was a Lua error
+-- on every event of a build without the global, in every friend's copy.
+function ns.InCombat()
+	local fn = InCombatLockdown or (C_RestrictedActions and C_RestrictedActions.InCombatLockdown)
+	if fn then
+		local ok, v = pcall(fn)   -- guard: Blizzard's call, and a build where it throws
+		if ok and not secret(v) and type(v) == "boolean" then return v end
+	end
+	if UnitAffectingCombat then
+		local ok, v = pcall(UnitAffectingCombat, "player")   -- guard: as above
+		if ok and not secret(v) and type(v) == "boolean" then return v end
+	end
+	return true
+end
+
+-- A member's key is the character name alone, from a unit and from an addon message's sender alike. Forever's UnitName
+-- returns the first name and the SURNAME ("Alcara", "Argenta"; AlcCore's Core.FullName), while a sender is
+-- "Alcara-ClassicBetaPvE": the old "Name-<second value>" key never matched anyone with a surname (2026-10-16, every
+-- copy showed the others as "no addon"). Two members of one group with the same first name are rare enough.
 function ns.UnitKey(unit)
-	local name, realm = UnitName(unit)
-	if not name or secret(name) then return nil end
-	if realm and realm ~= "" and not secret(realm) then return name .. "-" .. realm end
-	return name
+	local name = UnitName(unit)
+	-- the secret test FIRST: `not name` on a secret name throws (a party member's name in a restricted instance)
+	if secret(name) or not name then return nil end
+	return (name:gsub("%-.*", ""))
 end
 function ns.SenderKey(sender)
-	if Ambiguate then return Ambiguate(sender, "none") end
 	return (sender:gsub("%-.*", ""))
 end
 
@@ -261,11 +309,13 @@ function ns.PlanMembers(db)
 		out[#out + 1] = { key = "p" .. i, name = name, class = e.class, level = e.level or 60,
 			role = e.role or ns.DefaultRole(e.class), talents = {}, known = false, planIndex = i }
 	end
-	-- a planned paladin, priest or druid is taken to have the talent buffs (Kings, Divine Spirit, Moonkin)
+	-- a planned paladin, priest or druid is taken to have the talent buffs (Kings, Divine Spirit; Moonkin for a caster
+	-- druid, Leader of the Pack for a melee or tank druid)
 	for _, m in ipairs(out) do
 		for line, c in pairs(D.class) do
 			if c.kind == "talent" or line == "kings" then
-				if c.class == m.class and (line ~= "crit" or m.role == "caster") then m.talents[line] = true end
+				local roles = ns.TALENT_ROLES[line]
+				if c.class == m.class and (not roles or roles[m.role]) then m.talents[line] = true end
 			end
 		end
 	end
@@ -306,6 +356,7 @@ function ns.Members(db, own)
 	for _, unit in ipairs(ns.Units()) do
 		local key = ns.UnitKey(unit)
 		local _, class = UnitClass(unit)
+		if secret(class) then class = nil end   -- tested before `and` uses it (a truth test on a secret throws)
 		local level = UnitLevel(unit)
 		if key and class and type(level) == "number" and not secret(level) then
 			if level <= 0 then level = 60 end   -- unknown (??): treat as the cap
@@ -408,7 +459,7 @@ end
 function ns.SendAddon(text)
 	if ns.demo then return false end   -- the demo talks to nobody
 	local channel = ns.Channel()
-	if not channel or InCombatLockdown() then return false end
+	if not channel or ns.InCombat() then return false end
 	if C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() then return false end
 	local ok, result = pcall(C_ChatInfo.SendAddonMessage, ns.PREFIX, text, channel)   -- pcall: throttled or blocked sends throw on some builds
 	return ok and (result == nil or result == 0 or result == true)

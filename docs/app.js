@@ -68,7 +68,11 @@ function amountsText(a) {
   if (a.mp5) parts.push(`+${a.mp5} mana every 5 sec`);
   if (a.spi) parts.push(`+${a.spi} Spirit`);
   if (a.int) parts.push(`+${a.int} Intellect`);
-  if (a.crit) parts.push(`+${a.crit}% crit`);
+  if (a.mcrit && a.mcrit === a.scrit) parts.push(`+${a.mcrit}% crit with spells and attacks`);
+  else {
+    if (a.mcrit) parts.push(`+${a.mcrit}% melee and ranged crit`);
+    if (a.scrit) parts.push(`+${a.scrit}% spell crit`);
+  }
   return parts.join(", ") || "nothing yet at this level";
 }
 const KIND = { all: "", blessing: " blessing", totem: " totem", talent: " talent" };
@@ -89,8 +93,10 @@ function featureTip(line, members) {
     }
     const c = D.class[line];
     const top = Math.max(...members.map((m) => m.level));
-    out.push(`Same buff as ${c.name} (${CLASS_NAME(c.class)}${KIND[c.kind]}): they don't stack, the higher counts.`,
-      `${c.name} at level ${top}: ${amountsText(M.classAmounts(line, top))}.`);
+    out.push(line === "crit"
+      ? `Same buffs as the druid talents Moonkin Aura (spell crit) and Leader of the Pack (melee and ranged crit): the same crit doesn't stack, the higher counts.`
+      : `Same buff as ${c.name} (${CLASS_NAME(c.class)}${KIND[c.kind]}): they don't stack, the higher counts.`,
+      ...M.SOURCES[line].map((k) => `${D.class[k].name} at level ${top}: ${amountsText(M.classAmounts(k, top))}.`));
   }
   const ups = upgradesOf(line);
   if (ups.length) {
@@ -106,7 +112,7 @@ function cellTip(m, line, c, plan) {
   const pct = Math.round((c.pct || 0) * 100);
   if (c.kind === "camp") return `${name}: ${M.CAMP_NAME[line]} from the camp, ${pct}% of the full buff.`;
   const blessed = (plan.bless[m.key] || []).includes(line);
-  return `${name}: ${D.class[line].name}${blessed ? " (a paladin's blessing)" : ""}, ${pct}% of the full buff.`;
+  return `${name}: ${M.classBuffName(line, m.role)}${blessed ? " (a paladin's blessing)" : ""}, ${pct}% of the full buff.`;
 }
 
 // ------------------------------------------------------------------ state (this browser, and the URL)
@@ -337,7 +343,7 @@ function renderGrid(members, plan) {
   const rows = LINES.map((line) => el("tr", {},
     el("th", { scope: "row", tabindex: 0, "data-tip": line === "tent"
       ? "Rested XP: only the Camp Tent (Leatherworking) gives it."
-      : `${LINE_NAME[line]}: the class buff ${D.class[line].name} (${CLASS_NAME(D.class[line].class)}) or the camp's ${M.CAMP_NAME[line]} (${PROFESSION[M.CAMP_ITEM[line].skill]}).` },
+      : `${LINE_NAME[line]}: the class buff ${M.classBuffName(line)} (${CLASS_NAME(D.class[line].class)}) or the camp's ${M.CAMP_NAME[line]} (${PROFESSION[M.CAMP_ITEM[line].skill]}).` },
     icon(M.CAMP_ITEM[line].icon, 16), " ", LINE_NAME[line]),
     ...members.map((m) => {
       const c = plan.cells[m.key][line];
@@ -353,12 +359,12 @@ function renderRef(level) {
   const head = el("tr", {}, ...["Feature", "Profession", "Gives", "Class buff", "Upgrades"].map((t) => el("th", { scope: "col" }, t)));
   const rows = LINES.map((line) => {
     const it = M.CAMP_ITEM[line];
-    const c = D.class[line];
     return el("tr", {},
       el("th", { scope: "row", tabindex: 0, "data-tip": featureTip(line, [{ level }]) }, icon(it.icon, 18), " ", it.name),
       el("td", {}, `${PROFESSION[it.skill]} 20`),
       el("td", {}, line === "tent" ? "rested XP to 5% of a level, once an hour" : amountsText(M.campAmounts(line, level))),
-      el("td", {}, line === "tent" ? "none" : [icon(c.icon, 16), " ", `${c.name}: ${amountsText(M.classAmounts(line, level))}`]),
+      el("td", {}, line === "tent" ? "none" : M.SOURCES[line].flatMap((k, i) => [i ? "; " : "", icon(D.class[k].icon, 16), " ",
+        `${D.class[k].name}: ${amountsText(M.classAmounts(k, level))}`])),
       el("td", {}, upgradesOf(line).map((u) => `${u.name} (${u.rank})`).join(", ")));
   });
   $("ref").replaceChildren(el("thead", {}, head), el("tbody", {}, rows));

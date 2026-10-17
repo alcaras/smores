@@ -93,6 +93,10 @@ local NOTE_TIPS = {
 	Theory = "Theory\nThe best camp for this group if professions did not matter (and an Expert fire).",
 	You = "Your next choice\nYour next-best drop and how much worse the plan gets with it.",
 	Camp = "Camp\nThe best camp for this plan, ignoring professions (an Expert fire holds 10).",
+	Here = "Here\nThe features standing at this fire: sit a minute and you get these buffs. Hover each object at the "
+		.. "fire to add it. They count as placed and fill the fire; forgotten when you leave or after 15 min.",
+	Up = "Up\nCamp buffs someone in the group already has. The game gives them after a minute sitting at a fire, and "
+		.. "they last an hour. The plan counts them as covered: nobody needs to drop them.",
 }
 local WHY_TIPS = {
 	["no addon"] = "No S'mores\nThe planner can't see their bags or cooldown. They still get every buff at the fire.",
@@ -112,7 +116,11 @@ function ns.Gives(line, level)
 		return s
 	end
 	if line == "kings" then return ("+%d%% stats"):format(a.pct or 0) end
-	if line == "crit" then return ("+%d%% crit"):format(a.crit or 0) end
+	if line == "crit" then
+		local m, s = a.mcrit or 0, a.scrit or 0
+		if m == s then return ("+%d%% crit"):format(m) end
+		return ("+%d%% melee crit, +%d%% spell crit"):format(m, s)
+	end
 	local unit = { sta = "Sta", str = "Str", ap = "AP", mp5 = "mp5", spi = "Spi", int = "Int" }
 	local _, v = next(a)
 	return ("+%d %s"):format(v or 0, unit[line] or "")
@@ -276,7 +284,8 @@ local function cellTip(m, line, c, plan)
 	if c.kind == "camp" then return name .. "\n" .. ns.CAMP_NAME[line] .. " from the camp: " .. pct .. "% of the full buff." end
 	local blessed = false
 	for _, b in ipairs(plan.bless[m.key] or {}) do if b == line then blessed = true end end
-	return name .. "\n" .. D.class[line].name .. (blessed and " (a paladin's blessing)" or "") .. ": " .. pct .. "% of the full buff."
+	return name .. "\n" .. ns.ClassBuffName(line, m.role) .. (blessed and " (a paladin's blessing)" or "") .. ": " .. pct
+		.. "% of the full buff."
 end
 
 local function renderGrid(plan, members, y)
@@ -310,7 +319,7 @@ local function renderGrid(plan, members, y)
 		g.labelTips[i] = g.labelTips[i] or hover(g, LAYOUT.gridLabelW, LAYOUT.gridRowH, function(self) return self.tipText end)
 		g.labelTips[i]:SetPoint("TOPLEFT", 0, -i * LAYOUT.gridRowH)
 		g.labelTips[i].tipText = line == "tent" and "Rested XP\nOnly the Camp Tent (Leatherworking) gives it."
-			or (ns.LINE_NAME[line] .. "\nThe class buff " .. D.class[line].name .. ", or the camp's " .. ns.CAMP_NAME[line] .. ".")
+			or (ns.LINE_NAME[line] .. "\nThe class buff " .. ns.ClassBuffName(line) .. ", or the camp's " .. ns.CAMP_NAME[line] .. ".")
 		g.cells[i] = g.cells[i] or {}
 		for j = 1, 8 do
 			g.cells[i][j] = g.cells[i][j] or text(g, "GameFontHighlightSmall", "CENTER", LAYOUT.gridCellW)
@@ -411,7 +420,9 @@ function ns.Render(state)
 				r.itemBtn.tipText = line == "tent"
 					and "S'mores: tops up rested XP to 5% of a level for everyone sitting nearby, once an hour each."
 					or ("S'mores: " .. ns.Gives(line, state.level) .. " for " .. n .. (n == 1 and " member" or " members")
-						.. ". Same buff as " .. D.class[line].name .. "; the higher one counts.")
+						.. (line == "crit" and (". Moonkin Aura gives spell crit, Leader of the Pack melee and ranged crit;"
+							.. " the higher of each counts.")
+							or (". Same buff as " .. D.class[line].name .. "; the higher one counts.")))
 			elseif c then
 				-- not in their bags: what to craft for the group, and with which profession
 				local it, prof = D.items[c.id], PROFESSION[D.items[c.id].skill] or "its profession"
@@ -473,6 +484,16 @@ function ns.Render(state)
 			if plan.camp[line] then t[#t + 1] = ns.CAMP_NAME[line] .. " " .. GRAY .. ns.Gives(line, state.level) .. "|r" end
 		end
 		notes[#notes + 1] = "Camp  " .. (#t > 0 and table.concat(t, ", ") or GRAY .. "nothing adds anything|r")
+	else
+		-- features standing at this fire (hovered): what sitting a minute gives; camp buffs already on the group.
+		-- The plan counts both as placed.
+		for _, kind in ipairs({ "here", "up" }) do
+			local t = {}
+			for _, line in ipairs(ns.LINES) do
+				if plan.camp[line] == kind then t[#t + 1] = ns.CAMP_NAME[line] .. " " .. GRAY .. ns.Gives(line, state.level) .. "|r" end
+			end
+			if #t > 0 then notes[#notes + 1] = (kind == "here" and "Here  " or "Up  ") .. table.concat(t, ", ") end
+		end
 	end
 	if hidden > 0 then notes[#notes + 1] = GRAY .. hidden .. " more members (nothing to drop)|r" end
 	if #plan.need > 0 then
@@ -488,8 +509,7 @@ function ns.Render(state)
 	if #plan.skip > 0 then
 		local t = {}
 		for _, line in ipairs(plan.skip) do
-			local c = D.class[line]
-			t[#t + 1] = ns.CAMP_NAME[line] .. " " .. GRAY .. "(" .. c.name .. ")|r"
+			t[#t + 1] = ns.CAMP_NAME[line] .. " " .. GRAY .. "(" .. ns.ClassBuffName(line) .. ")|r"
 		end
 		notes[#notes + 1] = "Skip  " .. table.concat(t, ", ")
 	end

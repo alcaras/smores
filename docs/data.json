@@ -1,5 +1,5 @@
 {
- "build": "1.60.1.70338",
+ "build": "1.60.1.70450",
  "camp": {
   "ap": {
    "aura": 1230164,
@@ -35,7 +35,13 @@
   "crit": {
    "aura": 1229519,
    "comp": {
-    "crit": [
+    "mcrit": [
+     [
+      1,
+      2
+     ]
+    ],
+    "scrit": [
      [
       1,
       2
@@ -333,7 +339,7 @@
    ],
    "class": "DRUID",
    "comp": {
-    "crit": [
+    "scrit": [
      [
       40,
       3
@@ -538,6 +544,25 @@
    "icon": "spell_holy_sealofwisdom",
    "kind": "blessing",
    "name": "Wisdom"
+  },
+  "pack": {
+   "auras": [
+    24932
+   ],
+   "class": "DRUID",
+   "comp": {
+    "mcrit": [
+     [
+      29,
+      3
+     ]
+    ]
+   },
+   "covers": "crit",
+   "icon": "spell_nature_unyeildingstamina",
+   "kind": "talent",
+   "name": "Leader of the Pack",
+   "talent": 17007
   },
   "spi": {
    "auras": [

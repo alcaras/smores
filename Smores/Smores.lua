@@ -8,7 +8,6 @@ local f = ns.frame
 local CAMPFIRE_NEARBY, WELCOMING = 1283391, 1229739   -- auras: smoke of a fire nearby / sitting at a fire
 local REFRESH_EVERY = 5      -- seconds, only while the panel is open
 local HELLO_GAP = 2          -- seconds between two of our addon messages
-local DISMISS_FOR = 900      -- an auto-opened panel closed by hand stays closed this long (a fire lasts 15 min)
 
 -- goal: nil = by your level (leveling below the cap, progression at it), "level", "progress"; scope: "party" | "you"
 local defaults = { roles = {}, auto = true, uptime = 70, grid = false, scope = "party" }
@@ -16,7 +15,7 @@ local db
 local me
 local own = { lines = {}, items = {}, talents = {}, cooldown = 0 }
 local lastHello, lastHelloAt, helloPending = nil, -100, false
-local reopenAfterCombat, dismissedUntil, autoOpened = false, 0, false
+local reopenAfterCombat = false
 local rosterSig
 
 local function say(msg) print("|cff7fbf7fS'mores|r: " .. msg) end
@@ -50,14 +49,14 @@ local function refreshPlan()
 end
 
 function ns.Refresh()
-	if not db or not f:IsShown() or InCombatLockdown() then return end
+	if not db or not f:IsShown() or ns.InCombat() then return end
 	if ns.planMode then return refreshPlan() end
 	own.cooldown = ns.SelfCooldown(own.items)
 	local members = ns.Members(db, own)
 	local seen, applied = ns.ScanAuras(members)
 	local maxLevel = GetMaxPlayerLevel and GetMaxPlayerLevel() or 60
 	local opts = { uptime = (db.uptime or 70) / 100, maxLevel = maxLevel, seen = seen, goal = ns.Goal(),
-		focus = db.scope == "you" and me or nil }
+		focus = db.scope == "you" and me or nil, up = applied, here = ns.Here() }
 	local plan = ns.Plan(members, opts)
 	local ideal = ns.Plan(ns.IdealMembers(members), opts)   -- as if everyone carried their professions' best item
 	-- ignoring professions: depends only on who is here and the options, so it is worked out again only when those change
@@ -144,7 +143,7 @@ function ns.SetPlanMode(on)
 		if not db.planRoster or #db.planRoster == 0 then db.planRoster = seedRoster() end
 	end
 	ns.lastPlan = nil
-	if f:IsShown() then ns.Refresh() else autoOpened = false; f:Show() end
+	if f:IsShown() then ns.Refresh() else f:Show() end
 end
 
 function ns.CycleClass(i)
@@ -227,7 +226,7 @@ local function sendHello(force)
 	local text = ns.HelloText(own)
 	local now = GetTime()
 	if not force and text == lastHello and now - lastHelloAt < 60 then return end
-	if now - lastHelloAt < HELLO_GAP or InCombatLockdown() then
+	if now - lastHelloAt < HELLO_GAP or ns.InCombat() then
 		if not helloPending then
 			helloPending = true
 			C_Timer.After(HELLO_GAP, function() helloPending = false; sendHello(true) end)
@@ -260,7 +259,7 @@ end
 function ns.Post()
 	local plan, members = ns.lastPlan, ns.lastMembers
 	if not plan then return end
-	if InCombatLockdown() then say("not in combat.") return end
+	if ns.InCombat() then say("not in combat.") return end
 	local text = ns.PostText(plan, members)
 	local channel = ns.Channel()
 	if ns.demo then say("(demo, not sent) " .. text) return end
@@ -271,7 +270,7 @@ end
 
 -- ---------------------------------------------------------------- opening by itself at a fire
 local function nearFire()
-	if InCombatLockdown() or not C_UnitAuras.GetPlayerAuraBySpellID then return false end
+	if ns.InCombat() or not C_UnitAuras.GetPlayerAuraBySpellID then return false end
 	for _, id in ipairs({ CAMPFIRE_NEARBY, WELCOMING }) do
 		local ok, aura = pcall(C_UnitAuras.GetPlayerAuraBySpellID, id)   -- pcall: restricted aura reads can throw
 		if ok and aura ~= nil and not ns.secret(aura) then return true end
@@ -279,18 +278,37 @@ local function nearFire()
 	return false
 end
 
-
+-- Arriving at a fire opens the panel (in a group), every time, also right after it was closed at the last fire;
+-- closed by hand at this fire, it stays closed until you leave it. Leaving forgets the hovered features (only on the
+-- change from near to away: if the nearby auras are never seen, the 15 min expiry alone clears them).
+local wasNear, openedHere = false, false
 local function checkFire()
-	if not db or not db.auto or f:IsShown() or not IsInGroup() or GetTime() < dismissedUntil then return end
-	if nearFire() then
-		autoOpened = true
-		f:Show()
+	if not db or ns.InCombat() then return end
+	local near = nearFire()
+	if near and not openedHere and db.auto and IsInGroup() then
+		openedHere = true
+		if not f:IsShown() then f:Show() end
 	end
+	if wasNear and not near then
+		openedHere = false
+		if next(ns.here) then
+			for k in pairs(ns.here) do ns.here[k] = nil end
+			ns.Refresh()
+		end
+	end
+	wasNear = near
 end
-f:HookScript("OnHide", function()
-	if autoOpened and not InCombatLockdown() and not reopenAfterCombat then dismissedUntil = GetTime() + DISMISS_FOR end
-	autoOpened = false
-end)
+
+-- hovering a feature at the fire (an object or, for a few, a creature): the world cursor tooltip names it
+local function onWorldCursor()
+	if ns.InCombat() or not (C_TooltipInfo and C_TooltipInfo.GetWorldCursor) then return end
+	local ok, data = pcall(C_TooltipInfo.GetWorldCursor)   -- pcall: tooltip reads can be restricted
+	if not ok or type(data) ~= "table" or ns.secret(data) or type(data.lines) ~= "table" then return end
+	local first = data.lines[1]
+	local name = type(first) == "table" and first.leftText
+	if type(name) ~= "string" or ns.secret(name) then return end
+	if ns.SeeFeature(name) then ns.Refresh() end
+end
 
 -- ---------------------------------------------------------------- events
 local ev = CreateFrame("Frame")
@@ -305,6 +323,7 @@ ev:RegisterEvent("PLAYER_LEVEL_UP")
 ev:RegisterEvent("SKILL_LINES_CHANGED")
 ev:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
 ev:RegisterUnitEvent("UNIT_AURA", "player")
+ev:RegisterEvent("WORLD_CURSOR_TOOLTIP_UPDATE")
 ev:SetScript("OnEvent", function(_, event, a1, a2, a3, a4)
 	if event == "ADDON_LOADED" then
 		if a1 ~= ADDON then return end
@@ -346,6 +365,8 @@ ev:SetScript("OnEvent", function(_, event, a1, a2, a3, a4)
 		end
 	elseif event == "UNIT_AURA" then
 		checkFire()
+	elseif event == "WORLD_CURSOR_TOOLTIP_UPDATE" then
+		onWorldCursor()
 	elseif event == "PLAYER_REGEN_DISABLED" then
 		if f:IsShown() then reopenAfterCombat = true; f:Hide() end
 	elseif event == "PLAYER_REGEN_ENABLED" then
@@ -359,7 +380,7 @@ SLASH_SMORES2 = "/smore"
 SlashCmdList.SMORES = function(msg)
 	local cmd, arg = (msg or ""):lower():match("^%s*(%S*)%s*(.-)%s*$")
 	if cmd == "" then
-		if f:IsShown() then f:Hide() else autoOpened = false; f:Show() end
+		if f:IsShown() then f:Hide() else f:Show() end
 	elseif cmd == "plan" then
 		planSlash(arg)
 	elseif cmd == "import" then
@@ -379,7 +400,7 @@ SlashCmdList.SMORES = function(msg)
 			say(("demo on: you and four made-up members (%s group). Nothing is sent. /smores demo paladin | shaman | off"):format(ns.demo))
 		end
 		ns.lastPlan = nil
-		if f:IsShown() then ns.Refresh() else autoOpened = false; f:Show() end
+		if f:IsShown() then ns.Refresh() else f:Show() end
 	elseif cmd == "goal" and (arg == "leveling" or arg == "level" or arg == "progress" or arg == "progression" or arg == "auto") then
 		if arg == "auto" then db.goal = nil
 		else db.goal = (arg == "progress" or arg == "progression") and "progress" or "level" end

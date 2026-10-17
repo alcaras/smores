@@ -9,6 +9,9 @@ drop which camp feature so the camp fills what your classes' buffs leave open.
   (Might for melee when nobody has a Lodestone, while a Fish Bowl covers Kings).
 - With a shaman it shows Strength of Earth (at 70% uptime) next to a Sharpening Wheel, so the shaman can judge the
   earth slot.
+- The Camp Chair gives 2% crit with spells and attacks. A druid's crit aura covers only half of it: Moonkin Aura
+  (balance) spell crit, Leader of the Pack (feral) melee and ranged crit. So next to a moonkin the Chair still helps
+  melee, tanks and hunters; next to a feral druid it still helps casters and healers; with both it adds nothing.
 
 ## Use
 
@@ -46,7 +49,9 @@ or paste a code there and press Enter (`/smores import <code>` works too).
 
 ## Install
 
-Unzip into `World of Warcraft\_classic_beta_\Interface\AddOns` (the folder `Smores` with `Smores.toc` inside).
+Unzip into the `Interface\AddOns` folder of your WoW Forever game folder (the folder `Smores` with `Smores.toc`
+inside). On the beta that is `World of Warcraft\_classic_beta_\Interface\AddOns`; the live game (from 3 November
+2026) has its own folder under `World of Warcraft`, with its own `Interface\AddOns`.
 New versions: https://github.com/alcaras/smores/releases
 
-Version 0.2.0, a test build. Report what looks wrong, with a screenshot of the panel.
+Version 0.4.0, made for the live launch. Report what looks wrong, with a screenshot of the panel.

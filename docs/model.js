@@ -11,13 +11,17 @@ export const ROLES = ["tank", "melee", "ranged", "caster", "healer"];
 export const CLASSES = ["WARRIOR", "ROGUE", "HUNTER", "MAGE", "WARLOCK", "PRIEST", "DRUID", "SHAMAN", "PALADIN"];
 export const PLAN_MAX = 20;
 
+// mcrit = melee and ranged crit, scrit = spell crit (the Camp Chair gives both, Moonkin Aura spell crit, Leader of the
+// Pack melee crit; the same crit does not stack; each role weighs one, so the higher per member stays right)
 const WEIGHTS = {
-  tank: { sta: 1.0, armor: 0.05, str: 0.6, agi: 0.6, int: 0, spi: 0, ap: 0.15, mp5: 0, crit: 6, res: 0.1 },
-  melee: { sta: 0.3, armor: 0.01, str: 1.0, agi: 1.0, int: 0, spi: 0, ap: 0.5, mp5: 0, crit: 20, res: 0.05 },
-  ranged: { sta: 0.3, armor: 0.01, str: 0, agi: 1.0, int: 0.4, spi: 0.1, ap: 0, mp5: 1.0, crit: 20, res: 0.05 },
-  caster: { sta: 0.3, armor: 0.01, str: 0, agi: 0, int: 1.0, spi: 0.4, ap: 0, mp5: 2.0, crit: 12, res: 0.05 },
-  healer: { sta: 0.3, armor: 0.01, str: 0, agi: 0, int: 1.0, spi: 0.7, ap: 0, mp5: 2.5, crit: 6, res: 0.05 },
+  tank: { sta: 1.0, armor: 0.05, str: 0.6, agi: 0.6, int: 0, spi: 0, ap: 0.15, mp5: 0, mcrit: 6, scrit: 0, res: 0.1 },
+  melee: { sta: 0.3, armor: 0.01, str: 1.0, agi: 1.0, int: 0, spi: 0, ap: 0.5, mp5: 0, mcrit: 20, scrit: 0, res: 0.05 },
+  ranged: { sta: 0.3, armor: 0.01, str: 0, agi: 1.0, int: 0.4, spi: 0.1, ap: 0, mp5: 1.0, mcrit: 20, scrit: 0, res: 0.05 },
+  caster: { sta: 0.3, armor: 0.01, str: 0, agi: 0, int: 1.0, spi: 0.4, ap: 0, mp5: 2.0, mcrit: 0, scrit: 12, res: 0.05 },
+  healer: { sta: 0.3, armor: 0.01, str: 0, agi: 0, int: 1.0, spi: 0.7, ap: 0, mp5: 2.5, mcrit: 0, scrit: 6, res: 0.05 },
 };
+// the roles a planned member must have to count as having taken a talent buff (a druid's form)
+const TALENT_ROLES = { crit: { caster: true }, pack: { melee: true, tank: true } };
 const REST = { level: 60, progress: 0 };
 const BOOST = { level: { mp5: 1.5, spi: 1.5, sta: 1.2 }, progress: {} };
 const DEFAULT_ROLE = {
@@ -43,6 +47,10 @@ export function makeModel(D) {
     for (const [comp, steps] of Object.entries(entry.comp)) out[comp] = step(steps, level);
     return out;
   };
+  // the class buffs that fill each line: its own, then talent buffs that cover other stats of it (Leader of the Pack)
+  const SOURCES = {};
+  for (const line of LINES) if (D.class[line]) SOURCES[line] = [line];
+  for (const [key, c] of Object.entries(D.class)) if (c.covers && SOURCES[c.covers]) SOURCES[c.covers].push(key);
   const campAmounts = (line, level) => amounts(D.camp[line], level);
   const classAmounts = (line, level) => amounts(D.class[line], level);
   const estStat = (level) => 2 * level + 20;
@@ -90,7 +98,7 @@ export function makeModel(D) {
           continue;
         }
         p.camp[line] = worth(m.role, m.level, campAmounts(line, m.level), goal);
-        p.full[line] = Math.max(worth(m.role, m.level, classAmounts(line, m.level), goal), p.camp[line]);
+        let own = worth(m.role, m.level, classAmounts(line, m.level), goal);
         const c = D.class[line];
         let base = 0;
         if (c.kind === "all" && best[c.class]) {
@@ -102,7 +110,14 @@ export function makeModel(D) {
         } else if (c.kind === "blessing" && best.PALADIN && (line !== "kings" || info.kings)) {
           p.bless[line] = worth(m.role, m.level, classAmounts(line, best.PALADIN), goal);
         }
+        for (const k of SOURCES[line].slice(1)) {
+          if (talentBy[k] || seen[k]) {
+            base += worth(m.role, m.level, classAmounts(k, talentBy[k] || best[D.class[k].class] || m.level), goal);
+          }
+          own += worth(m.role, m.level, classAmounts(k, m.level), goal);
+        }
         p.base[line] = base;
+        p.full[line] = Math.max(own, p.camp[line]);
       }
       m._p = p;
     }
@@ -246,7 +261,7 @@ export function makeModel(D) {
         m.can = LINES.filter((line) => CAMP_ITEM[line] && e.profs.includes(CAMP_ITEM[line].skill));
       }
       for (const [line, c] of Object.entries(D.class)) {
-        if ((c.kind === "talent" || line === "kings") && c.class === m.class && (line !== "crit" || m.role === "caster")) {
+        if ((c.kind === "talent" || line === "kings") && c.class === m.class && (!TALENT_ROLES[line] || TALENT_ROLES[line][m.role])) {
           m.talents[line] = true;
         }
       }
@@ -254,18 +269,34 @@ export function makeModel(D) {
     });
   }
 
+  // the class buff that fills a line: for a role the one worth most to it, else all of them
+  function classBuffName(line, role) {
+    const list = SOURCES[line] || [line];
+    if (!role) return list.map((k) => D.class[k].name).join(" or ");
+    let bestV = -1, name = D.class[line].name;
+    for (const k of list) {
+      const v = worth(role, 60, classAmounts(k, 60));
+      if (v > bestV) { bestV = v; name = D.class[k].name; }
+    }
+    return name;
+  }
+
   function gives(line, level) {
     if (line === "tent") return "rested XP";
     const a = campAmounts(line, level);
     if (line === "motw") return `+${a.armor || 0} armor` + ((a.stat || 0) > 0 ? `, +${a.stat} stats` : "");
     if (line === "kings") return `+${a.pct || 0}% stats`;
-    if (line === "crit") return `+${a.crit || 0}% crit`;
+    if (line === "crit") {
+      const mc = a.mcrit || 0, sc = a.scrit || 0;
+      return mc === sc ? `+${mc}% crit` : `+${mc}% melee crit, +${sc}% spell crit`;
+    }
     const unit = { sta: "Sta", str: "Str", ap: "AP", mp5: "mp5", spi: "Spi", int: "Int" }[line];
     const v = Object.values(a)[0] || 0;
     return `+${v} ${unit}`;
   }
 
-  return { theory, planWithCamp, planMembers, gives, campAmounts, classAmounts, CAMP_NAME, CAMP_ITEM, step, assign };
+  return { theory, planWithCamp, planMembers, gives, campAmounts, classAmounts, classBuffName, SOURCES, CAMP_NAME, CAMP_ITEM,
+    step, assign };
 }
 
 // ------------------------------------------------------------------ the plan code (same as the addon)

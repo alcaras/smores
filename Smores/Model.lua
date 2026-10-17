@@ -17,16 +17,32 @@ for _, it in pairs(D.items) do
 end
 
 -- How much one point of each stat is worth to a role. Rough on purpose: the plan only needs the order right.
--- crit is per 1%; armor and resistances per point; pct (Kings) goes through the estimated stats below.
+-- mcrit (melee and ranged crit) and scrit (spell crit) are per 1%; armor and resistances per point; pct (Kings) goes
+-- through the estimated stats below.
+-- Since build 70425 the Camp Chair gives both crits, Moonkin Aura spell crit, Leader of the Pack melee crit; the same
+-- crit does not stack. Each role weighs one of the two, so "the higher one counts" per member stays right: Moonkin is
+-- worth nothing to a melee, who still gets the Chair's crit unless a feral druid brings Leader of the Pack.
 local WEIGHTS = {
-	tank = { sta = 1.0, armor = 0.05, str = 0.6, agi = 0.6, int = 0, spi = 0, ap = 0.15, mp5 = 0, crit = 6, res = 0.1 },
-	melee = { sta = 0.3, armor = 0.01, str = 1.0, agi = 1.0, int = 0, spi = 0, ap = 0.5, mp5 = 0, crit = 20, res = 0.05 },
-	ranged = { sta = 0.3, armor = 0.01, str = 0, agi = 1.0, int = 0.4, spi = 0.1, ap = 0, mp5 = 1.0, crit = 20, res = 0.05 },
-	caster = { sta = 0.3, armor = 0.01, str = 0, agi = 0, int = 1.0, spi = 0.4, ap = 0, mp5 = 2.0, crit = 12, res = 0.05 },
-	healer = { sta = 0.3, armor = 0.01, str = 0, agi = 0, int = 1.0, spi = 0.7, ap = 0, mp5 = 2.5, crit = 6, res = 0.05 },
+	tank = { sta = 1.0, armor = 0.05, str = 0.6, agi = 0.6, int = 0, spi = 0, ap = 0.15, mp5 = 0, mcrit = 6, scrit = 0, res = 0.1 },
+	melee = { sta = 0.3, armor = 0.01, str = 1.0, agi = 1.0, int = 0, spi = 0, ap = 0.5, mp5 = 0, mcrit = 20, scrit = 0, res = 0.05 },
+	ranged = { sta = 0.3, armor = 0.01, str = 0, agi = 1.0, int = 0.4, spi = 0.1, ap = 0, mp5 = 1.0, mcrit = 20, scrit = 0, res = 0.05 },
+	caster = { sta = 0.3, armor = 0.01, str = 0, agi = 0, int = 1.0, spi = 0.4, ap = 0, mp5 = 2.0, mcrit = 0, scrit = 12, res = 0.05 },
+	healer = { sta = 0.3, armor = 0.01, str = 0, agi = 0, int = 1.0, spi = 0.7, ap = 0, mp5 = 2.5, mcrit = 0, scrit = 6, res = 0.05 },
 }
 ns.ROLES = { "tank", "melee", "ranged", "caster", "healer" }
 ns.WEIGHTS = WEIGHTS
+-- the roles a planned member must have to count as having taken a talent buff (a druid's form)
+ns.TALENT_ROLES = { crit = { caster = true }, pack = { melee = true, tank = true } }
+
+-- the class buffs that fill each line: its own, then talent buffs that cover other stats of it (D.class.pack,
+-- Leader of the Pack: the melee crit of the Crit line, next to Moonkin Aura's spell crit)
+ns.SOURCES = {}
+for _, line in ipairs(ns.LINES) do
+	if D.class[line] then ns.SOURCES[line] = { line } end
+end
+for key, c in pairs(D.class) do
+	if c.covers and ns.SOURCES[c.covers] then table.insert(ns.SOURCES[c.covers], key) end
+end
 -- the goal: "level" (XP: the tent's rested XP counts, mana and spirit mean less drinking) or "progress" (power only)
 local REST = { level = 60, progress = 0 }   -- the tent's rested XP, for a member below the level cap
 local BOOST = { level = { mp5 = 1.5, spi = 1.5, sta = 1.2 }, progress = {} }
@@ -80,6 +96,23 @@ local function worth(role, level, amts, goal)
 end
 ns.Worth = worth
 
+-- the name of the class buff that fills a line: for a role the one worth most to it, else all of them
+-- ("Moonkin Aura or Leader of the Pack")
+function ns.ClassBuffName(line, role)
+	local list = ns.SOURCES[line] or { line }
+	if not role then
+		local t = {}
+		for _, k in ipairs(list) do t[#t + 1] = D.class[k].name end
+		return table.concat(t, " or ")
+	end
+	local bestV, name = -1, D.class[line].name
+	for _, k in ipairs(list) do
+		local v = worth(role, 60, ns.ClassAmounts(k, 60))
+		if v > bestV then bestV, name = v, D.class[k].name end
+	end
+	return name
+end
+
 -- Precompute what each member gets per line from every source. Members:
 --   { key, name, class, level, role, known, lines = {[line] = itemID}, fire, cooldown, talents = {[line] = true} }
 -- opts: { uptime = 0..1 (totems), maxLevel, seen = {[line] = true} (talent buffs seen on someone),
@@ -119,8 +152,7 @@ local function prepare(members, opts)
 				p.camp[line], p.full[line], p.base[line] = v, v, 0
 			else
 				p.camp[line] = worth(m.role, m.level, ns.CampAmounts(line, m.level), goal)
-				-- a full set: the class buff of your level, or the camp copy where that is more (no class buff yet)
-				p.full[line] = math.max(worth(m.role, m.level, ns.ClassAmounts(line, m.level), goal), p.camp[line])
+				local own = worth(m.role, m.level, ns.ClassAmounts(line, m.level), goal)
 				local c = D.class[line]
 				local base = 0
 				if c.kind == "all" and best[c.class] then
@@ -132,7 +164,18 @@ local function prepare(members, opts)
 				elseif c.kind == "blessing" and best.PALADIN and (line ~= "kings" or info.kings) then
 					p.bless[line] = worth(m.role, m.level, ns.ClassAmounts(line, best.PALADIN), goal)
 				end
+				-- the line's other talent buffs give other stats (Leader of the Pack's melee crit), so their worths add
+				for i = 2, #ns.SOURCES[line] do
+					local k = ns.SOURCES[line][i]
+					if talentBy[k] or seen[k] then
+						base = base + worth(m.role, m.level,
+							ns.ClassAmounts(k, talentBy[k] or best[D.class[k].class] or m.level), goal)
+					end
+					own = own + worth(m.role, m.level, ns.ClassAmounts(k, m.level), goal)
+				end
 				p.base[line] = base
+				-- a full set: the class buffs of your level, or the camp copy where that is more (no class buff yet)
+				p.full[line] = math.max(own, p.camp[line])
 			end
 		end
 		m._p = p
@@ -233,6 +276,16 @@ function ns.Plan(members, opts)
 
 	local bestScore, bestPick = -1, {}
 	local camp, pick = {}, {}
+	-- buffs already up (opts.up, from the auras people wear): taken as placed. They take no fire slot: a camp benefit
+	-- lasts 1 h after sitting (1230124 and the rest), a feature 15 min (1307254), so the fire that gave it may be gone.
+	for line in pairs(opts.up or {}) do
+		if D.camp[line] and not opts.camp then camp[line] = "up" end
+	end
+	-- features standing at this fire (opts.here, hovered): placed, and they do fill the fire
+	local here = 0
+	for line in pairs(opts.here or {}) do
+		if D.camp[line] and not opts.camp then camp[line], here = "here", here + 1 end
+	end
 	if combos <= EXHAUSTIVE then
 		local function rec(i, count)
 			if i > #droppers then
@@ -256,9 +309,9 @@ function ns.Plan(members, opts)
 				end
 			end
 		end
-		rec(1, 0)
+		rec(1, here)
 	else
-		local used, count = {}, 0
+		local used, count = {}, here
 		bestScore = score(members, camp, info)
 		while count < cap do
 			local gain, gi, gl = 1e-6, nil, nil
@@ -278,7 +331,7 @@ function ns.Plan(members, opts)
 			used[gi], camp[gl], bestPick[gi] = true, droppers[gi].m.key, gl
 			bestScore, count = bestScore + gain, count + 1
 		end
-		for k in pairs(camp) do camp[k] = nil end
+		for k, v in pairs(camp) do if v ~= "up" and v ~= "here" then camp[k] = nil end end
 	end
 
 	local plan = { drops = {}, camp = {}, capacity = capacity, fireBy = fireBy, bless = {}, cells = {},
@@ -287,12 +340,13 @@ function ns.Plan(members, opts)
 		plan.drops[droppers[i].m.key] = line
 		plan.camp[line] = droppers[i].m.key
 	end
+	for line, v in pairs(camp) do if v == "up" or v == "here" then plan.camp[line] = v end end
 	if opts.camp then
 		for _, line in ipairs(opts.camp) do plan.camp[line] = "theory" end
 		plan.capacity = 10
 	end
 	plan.used = 0
-	for _ in pairs(plan.camp) do plan.used = plan.used + 1 end
+	for _, v in pairs(plan.camp) do if v ~= "up" then plan.used = plan.used + 1 end end
 	plan.score = score(members, plan.camp, info)
 
 	-- cells and coverage
