@@ -110,11 +110,18 @@ export function makeModel(D) {
         } else if (c.kind === "blessing" && best.PALADIN && (line !== "kings" || info.kings)) {
           p.bless[line] = worth(m.role, m.level, classAmounts(line, best.PALADIN), goal);
         }
-        for (const k of SOURCES[line].slice(1)) {
-          if (talentBy[k] || seen[k]) {
-            base += worth(m.role, m.level, classAmounts(k, talentBy[k] || best[D.class[k].class] || m.level), goal);
+        // the line's other talent buffs (Leader of the Pack next to Moonkin Aura): per stat the most any of them gives,
+        // since the same stat does not stack (both all crit in build 70790; 70425-70532 apart, which then add up)
+        const list = SOURCES[line];
+        if (list.length > 1 && c.kind === "talent") {
+          const got = {}, all = {};
+          const take = (t, a) => { for (const [comp, x] of Object.entries(a)) if (x > (t[comp] || 0)) t[comp] = x; };
+          for (const k of list) {
+            if (talentBy[k] || seen[k]) take(got, classAmounts(k, talentBy[k] || best[D.class[k].class] || m.level));
+            take(all, classAmounts(k, m.level));
           }
-          own += worth(m.role, m.level, classAmounts(k, m.level), goal);
+          base = worth(m.role, m.level, got, goal);
+          own = worth(m.role, m.level, all, goal);
         }
         p.base[line] = base;
         p.full[line] = Math.max(own, p.camp[line]);

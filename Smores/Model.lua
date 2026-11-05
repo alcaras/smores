@@ -164,14 +164,19 @@ local function prepare(members, opts)
 				elseif c.kind == "blessing" and best.PALADIN and (line ~= "kings" or info.kings) then
 					p.bless[line] = worth(m.role, m.level, ns.ClassAmounts(line, best.PALADIN), goal)
 				end
-				-- the line's other talent buffs give other stats (Leader of the Pack's melee crit), so their worths add
-				for i = 2, #ns.SOURCES[line] do
-					local k = ns.SOURCES[line][i]
-					if talentBy[k] or seen[k] then
-						base = base + worth(m.role, m.level,
-							ns.ClassAmounts(k, talentBy[k] or best[D.class[k].class] or m.level), goal)
+				-- the line's other talent buffs (Leader of the Pack next to Moonkin Aura): per stat the most any of them gives,
+				-- since the same stat does not stack (both all crit in build 70790; 70425-70532 melee and spell crit apart,
+				-- which then add up)
+				local list = ns.SOURCES[line]
+				if #list > 1 and c.kind == "talent" then
+					local got, all = {}, {}
+					local function take(t, a) for comp, x in pairs(a) do if x > (t[comp] or 0) then t[comp] = x end end end
+					for _, k in ipairs(list) do
+						if talentBy[k] or seen[k] then take(got, ns.ClassAmounts(k, talentBy[k] or best[D.class[k].class] or m.level)) end
+						take(all, ns.ClassAmounts(k, m.level))
 					end
-					own = own + worth(m.role, m.level, ns.ClassAmounts(k, m.level), goal)
+					base = worth(m.role, m.level, got, goal)
+					own = worth(m.role, m.level, all, goal)
 				end
 				p.base[line] = base
 				-- a full set: the class buffs of your level, or the camp copy where that is more (no class buff yet)

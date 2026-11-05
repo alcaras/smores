@@ -303,6 +303,7 @@ end
 -- hovering a feature at the fire (an object or, for a few, a creature): the world cursor tooltip names it
 local function onWorldCursor()
 	if ns.InCombat() or not (C_TooltipInfo and C_TooltipInfo.GetWorldCursor) then return end
+	if not nearFire() then return end   -- only at a fire (a hovered name elsewhere is no camp feature)
 	local ok, data = pcall(C_TooltipInfo.GetWorldCursor)   -- pcall: tooltip reads can be restricted
 	if not ok or type(data) ~= "table" or ns.secret(data) or type(data.lines) ~= "table" then return end
 	local first = data.lines[1]
