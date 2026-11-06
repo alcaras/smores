@@ -11,7 +11,7 @@ local REFRESH_EVERY = 5      -- seconds, only while the panel is open
 local HELLO_GAP = 2          -- seconds between two of our addon messages
 
 -- goal: nil = by your level (leveling below the cap, progression at it), "level", "progress"; scope: "party" | "you"
-local defaults = { roles = {}, auto = true, uptime = 70, grid = false, scope = "party" }
+local defaults = { roles = {}, auto = true, uptime = 70, grid = false, scope = "party", timer = true }
 local db
 local me
 local own = { lines = {}, items = {}, talents = {}, cooldown = 0 }
@@ -68,7 +68,7 @@ function ns.Refresh()
 	if sig ~= theorySig then theory, theorySig = ns.Theory(members, opts), sig end
 	ns.lastPlan, ns.lastMembers, ns.lastIdeal, ns.lastTheory = plan, members, ideal, theory
 	ns.Render({ plan = plan, ideal = ideal, theory = theory, members = members, applied = applied, me = me,
-		level = UnitLevel("player") or 60, uptime = (db.uptime or 70) / 100 })
+		placed = ns.PlacedBy(), level = UnitLevel("player") or 60, uptime = (db.uptime or 70) / 100 })
 end
 
 local elapsed = 0
@@ -292,10 +292,7 @@ local function checkFire()
 	end
 	if wasNear and not near then
 		openedHere = false
-		if next(ns.here) then
-			for k in pairs(ns.here) do ns.here[k] = nil end
-			ns.Refresh()
-		end
+		if ns.ForgetHere() then ns.Refresh() end
 	end
 	wasNear = near
 end
@@ -323,7 +320,7 @@ ev:RegisterEvent("PLAYER_REGEN_DISABLED")
 ev:RegisterEvent("PLAYER_REGEN_ENABLED")
 ev:RegisterEvent("PLAYER_LEVEL_UP")
 ev:RegisterEvent("SKILL_LINES_CHANGED")
-ev:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
+ev:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")   -- all units: you and the group placing features (filtered to those units)
 ev:RegisterUnitEvent("UNIT_AURA", "player")
 ev:RegisterEvent("WORLD_CURSOR_TOOLTIP_UPDATE")
 ev:SetScript("OnEvent", function(_, event, a1, a2, a3, a4)
@@ -365,8 +362,17 @@ ev:SetScript("OnEvent", function(_, event, a1, a2, a3, a4)
 			if r then ns.reports[key] = r; ns.Refresh() end
 		end
 	elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
-		if not ns.secret(a3) and ns.FEATURE_SPELLS[a3] and not D.items[ns.FEATURE_SPELLS[a3]].fire then
+		-- only you and the group (the same cast also fires for target, nameplates ...); the secret test first
+		if type(a1) ~= "string" or not (a1 == "player" or a1:find("^party%d") or a1:find("^raid%d")) then return end
+		if ns.secret(a3) then return end
+		local id = ns.FEATURE_SPELLS[a3]
+		if not id or D.items[id].fire then return end
+		local key = (a1 == "player") and me or ns.UnitKey(a1)
+		ns.PlaceFeature(key, id)
+		if a1 == "player" then
 			C_Timer.After(1, function() rescanSelf(); sendHello(true); ns.Refresh() end)
+		else
+			ns.Refresh()
 		end
 	elseif event == "UNIT_AURA" then
 		checkFire()
@@ -421,6 +427,8 @@ SlashCmdList.SMORES = function(msg)
 	elseif cmd == "auto" and (arg == "on" or arg == "off") then
 		db.auto = arg == "on"
 		say("open at a campfire: " .. arg .. ".")
+	elseif cmd == "timer" then
+		ns.TimerCommand(arg)
 	elseif cmd == "uptime" and tonumber(arg) then
 		db.uptime = math.max(0, math.min(100, math.floor(tonumber(arg))))
 		say(("totems count at %d%% uptime."):format(db.uptime))
@@ -433,6 +441,6 @@ SlashCmdList.SMORES = function(msg)
 		ns.Refresh()
 	else
 		say("/smores (open or close) | plan [...] | import <code> | export | demo [shaman|paladin|off] | "
-			.. "goal leveling|progress|auto | for party|you | post | auto on|off | uptime <0-100> | reset")
+			.. "goal leveling|progress|auto | for party|you | post | auto on|off | timer on|off | uptime <0-100> | reset")
 	end
 end

@@ -17,8 +17,12 @@ local FEATURE_LINE = {}   -- lower-case feature name -> buff line
 for _, it in pairs(D.items) do
 	if it.line and ns.LINE_NAME[it.line] then FEATURE_LINE[it.name:lower()] = it.line end
 end
+-- objects named unlike their item, seen in game: the placed Camp Chair is "Chair" (2026-10-16, and again 2026-11-05
+-- next to Alcara's camp, after she placed one). A world chair next to a fire would count too: rare, and it lasts 15 min.
+FEATURE_LINE["chair"] = "crit"
 local HERE_FOR = 15 * 60   -- a placed feature lasts 15 min (1307254 and the rest)
 ns.here = {}               -- [line] = GetTime() it is forgotten
+ns.placed = {}             -- [member key] = { id = itemID, untilT = GetTime() it is gone }: who placed what here
 
 -- a hovered name; true when it is a camp feature seen for the first time
 function ns.SeeFeature(name)
@@ -27,6 +31,35 @@ function ns.SeeFeature(name)
 	local new = not ns.here[line]
 	ns.here[line] = GetTime() + HERE_FOR
 	return new
+end
+
+-- a feature placed by a member (your own cast, or a party member's seen by UNIT_SPELLCAST_SUCCEEDED): it stands
+-- here for 15 min, whether or not anyone hovers it. true when it is new.
+function ns.PlaceFeature(key, itemID)
+	local it = D.items[itemID]
+	if not (it and it.line and ns.LINE_NAME[it.line]) then return false end
+	local untilT = GetTime() + HERE_FOR
+	local new = not ns.here[it.line]
+	ns.here[it.line] = untilT
+	if key then ns.placed[key] = { id = itemID, untilT = untilT } end
+	return new or key ~= nil
+end
+
+-- who placed what, still standing: {[key] = itemID}
+function ns.PlacedBy()
+	local out, now = {}, GetTime()
+	for key, p in pairs(ns.placed) do
+		if p.untilT > now then out[key] = p.id else ns.placed[key] = nil end
+	end
+	return out
+end
+
+-- leaving the fire forgets it all
+function ns.ForgetHere()
+	local any = next(ns.here) ~= nil or next(ns.placed) ~= nil
+	for k in pairs(ns.here) do ns.here[k] = nil end
+	for k in pairs(ns.placed) do ns.placed[k] = nil end
+	return any
 end
 
 -- the features still standing: {[line] = true}

@@ -31,6 +31,8 @@ drop which camp feature so the camp fills what your classes' buffs leave open.
 - `/smores demo` shows the panel with you and four made-up members at your level (`demo paladin` for a
   group with a paladin, `demo off` to stop); nothing is sent while it is on.
 - `/smores goal leveling | progress | auto` and `/smores for party | you` do the same as the buttons.
+- Sitting at the fire: a thin line above your character counts down the minute until Camp Benefits, then turns
+  green for a moment. `/smores timer off` turns it off.
 - `/smores uptime 70` sets how often totems count as up; `/smores auto off` stops it opening by itself;
   `/smores reset` puts the panel back.
 
@@ -54,4 +56,4 @@ inside). On the beta that is `World of Warcraft\_classic_beta_\Interface\AddOns`
 2026) has its own folder under `World of Warcraft`, with its own `Interface\AddOns`.
 New versions: https://github.com/alcaras/smores/releases
 
-Version 0.4.2, for live build 1.60.1.70790 (crit is all crit again). Report what looks wrong, with a screenshot of the panel.
+Version 0.4.3, for live build 1.60.1.70790: what stands at the fire shows first; your and your group's placed features count at once; a timer for the minute you sit. Report what looks wrong, with a screenshot of the panel.

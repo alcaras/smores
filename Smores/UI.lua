@@ -12,6 +12,10 @@ local LAYOUT = {
 }
 ns.LAYOUT = LAYOUT
 local GRAY, GREEN, BLUE, RED, ORANGE = "|cff9d9d9d", "|cff5fd35f", "|cff6fa8ff", "|cffe0605a", "|cffffa040"
+local YELLOW = "|cffffd100"
+-- the note labels: what stands at the fire in green, what to do about it in yellow / orange, the rest gray
+local LABEL_COLOR = { Here = GREEN, Up = GREEN, Need = ORANGE, Also = ORANGE, Skip = GRAY, Bless = YELLOW,
+	Totem = YELLOW, Best = GRAY, Theory = GRAY, You = GRAY, Camp = YELLOW }
 -- the professions that make camp items (every camp item is crafted with its profession's recipe)
 local PROFESSION = { [129] = "First Aid", [164] = "Blacksmithing", [165] = "Leatherworking", [171] = "Alchemy",
 	[182] = "Herbalism", [185] = "Cooking", [186] = "Mining", [197] = "Tailoring", [202] = "Engineering",
@@ -93,8 +97,9 @@ local NOTE_TIPS = {
 	Theory = "Theory\nThe best camp for this group if professions did not matter (and an Expert fire).",
 	You = "Your next choice\nYour next-best drop and how much worse the plan gets with it.",
 	Camp = "Camp\nThe best camp for this plan, ignoring professions (an Expert fire holds 10).",
-	Here = "Here\nThe features standing at this fire: sit a minute and you get these buffs. Hover each object at the "
-		.. "fire to add it. They count as placed and fill the fire; forgotten when you leave or after 15 min.",
+	Here = "Here\nThe features standing at this fire: sit a minute and you get these buffs. Placed by you or the group "
+		.. "(seen as they are placed), or by others: hover each object at the fire to add it. They count as placed and "
+		.. "fill the fire; forgotten when you leave or after 15 min.",
 	Up = "Up\nCamp buffs someone in the group already has. The game gives them after a minute sitting at a fire, and "
 		.. "they last an hour. The plan counts them as covered: nobody needs to drop them.",
 }
@@ -212,7 +217,7 @@ for i = 1, LAYOUT.planRows do
 end
 
 f.notes, f.noteTips = {}, {}
-for i = 1, 9 do
+for i = 1, 11 do
 	local n = text(f, "GameFontHighlightSmall", "LEFT", LAYOUT.width - 2 * LAYOUT.pad)
 	n:SetWordWrap(true)   -- a long Need / Best line wraps instead of being cut
 	n:Hide()
@@ -220,6 +225,15 @@ for i = 1, 9 do
 	f.noteTips[i] = hover(f, LAYOUT.width - 2 * LAYOUT.pad, LAYOUT.noteH, function(self) return self.tipText end)
 	f.noteTips[i]:Hide()
 end
+
+-- the line between what stands at the fire (above) and who drops what (below)
+f.sep = f:CreateTexture(nil, "ARTWORK")
+f.sep:SetColorTexture(unpack(LAYOUT.border))
+f.sep:SetHeight(1)
+f.sep:Hide()
+f.dropHead = text(f, "GameFontDisableSmall")
+f.dropHead:SetText("To drop")
+f.dropHead:Hide()
 
 f.cover = text(f, "GameFontHighlightSmall")
 f.coverTip = hover(f, 200, LAYOUT.footH, "Coverage\nNow: from what people carry. Best items: if everyone carried the best "
@@ -404,7 +418,17 @@ function ns.Render(state)
 			r.role.label:SetText(GRAY .. ROLE_SHORT[m.role] .. "|r")
 			r.itemBtn.itemID = nil
 			local c = not line and craft[m.key]
-			if line then
+			local placedID = not line and state.placed and state.placed[m.key]
+			if placedID then
+				-- they placed a feature at this fire: it stands here, their cooldown is running
+				r.icon:SetTexture(C_Item.GetItemIconByID(placedID))
+				r.icon:SetDesaturated(false)
+				r.icon:Show()
+				r.item:SetText(GREEN .. D.items[placedID].name .. "|r")
+				r.gives:SetText(GRAY .. ns.Gives(D.items[placedID].line, state.level) .. "|r")
+				r.itemBtn.itemID = placedID
+				r.itemBtn.tipText = "S'mores: " .. m.name .. " placed it at this fire; it stands for 15 minutes."
+			elseif line then
 				local id = m.lines[line]
 				r.icon:SetTexture(C_Item.GetItemIconByID(id))
 				r.icon:SetDesaturated(false)
@@ -454,17 +478,21 @@ function ns.Render(state)
 				r.itemBtn.tipText = WHY_TIPS[why]
 			end
 			local st
-			if line and state.applied[line] then st = GREEN .. "placed|r"
+			if placedID then st = GREEN .. "placed|r"
+			elseif line and state.applied[line] then st = GREEN .. "placed|r"
 			elseif not m.known then st = GRAY .. "?|r"
 			elseif (m.cooldown or 0) > 0 then st = GRAY .. minutes(m.cooldown) .. "|r"
-			elseif line then st = "ready"
+			elseif line then st = YELLOW .. "drop|r"
 			elseif c then st = c.now and (ORANGE .. "craft|r") or (GRAY .. "skill " .. D.items[c.id].rank .. "|r")
 			else st = "" end
 			r.status:SetText(st)
-			if line and state.applied[line] then r.statusTip.tipText = "Placed\nThe buff is on someone in the group."
+			if placedID then
+				r.statusTip.tipText = "Placed\nIt stands at this fire." .. (((m.cooldown or 0) > 0)
+					and ("\nTheir next feature in " .. minutes(m.cooldown) .. ".") or "")
+			elseif line and state.applied[line] then r.statusTip.tipText = "Placed\nThe buff is on someone in the group."
 			elseif not m.known then r.statusTip.tipText = "Unknown\nNo S'mores: their cooldown can't be read."
 			elseif (m.cooldown or 0) > 0 then r.statusTip.tipText = "Cooldown\nMinutes until they can place another feature."
-			elseif line then r.statusTip.tipText = "Ready\nThey can place it now."
+			elseif line then r.statusTip.tipText = "Drop\nThey can place it now: the plan's pick for them."
 			elseif c and c.now then r.statusTip.tipText = "Craft\nTheir profession makes it; it is not in their bags yet."
 			elseif c then r.statusTip.tipText = "Skill up\nThe skill their profession needs to make it."
 			else r.statusTip.tipText = nil end
@@ -473,10 +501,8 @@ function ns.Render(state)
 			r:Hide()
 		end
 	end
-	local y = LAYOUT.pad + LAYOUT.titleH + math.min(#list, maxRows) * LAYOUT.rowH + 4
-
-	-- notes
-	local notes = {}
+	-- what stands at the fire first (Here, Up), then the rows (who drops what), then the other notes
+	local top, notes = {}, {}
 	if state.planMode then
 		-- the camp for this roster, ignoring professions
 		local t = {}
@@ -487,12 +513,20 @@ function ns.Render(state)
 	else
 		-- features standing at this fire (hovered): what sitting a minute gives; camp buffs already on the group.
 		-- The plan counts both as placed.
+		local by = {}   -- line -> who placed it
+		for key, id in pairs(state.placed or {}) do
+			local line = D.items[id] and D.items[id].line
+			for _, m in ipairs(members) do if m.key == key and line then by[line] = m.name end end
+		end
 		for _, kind in ipairs({ "here", "up" }) do
 			local t = {}
 			for _, line in ipairs(ns.LINES) do
-				if plan.camp[line] == kind then t[#t + 1] = ns.CAMP_NAME[line] .. " " .. GRAY .. ns.Gives(line, state.level) .. "|r" end
+				if plan.camp[line] == kind then
+					t[#t + 1] = ns.CAMP_NAME[line] .. " " .. GRAY .. ns.Gives(line, state.level)
+						.. (by[line] and (", " .. by[line]) or "") .. "|r"
+				end
 			end
-			if #t > 0 then notes[#notes + 1] = (kind == "here" and "Here  " or "Up  ") .. table.concat(t, ", ") end
+			if #t > 0 then top[#top + 1] = (kind == "here" and "Here  " or "Up  ") .. table.concat(t, ", ") end
 		end
 	end
 	if hidden > 0 then notes[#notes + 1] = GRAY .. hidden .. " more members (nothing to drop)|r" end
@@ -538,7 +572,10 @@ function ns.Render(state)
 	local theory = state.theory
 	if theory and #theory.lines > 0 then
 		local t = {}
-		for _, line in ipairs(theory.lines) do t[#t + 1] = ns.CAMP_NAME[line] end
+		for _, line in ipairs(theory.lines) do
+			local k = plan.camp[line]
+			t[#t + 1] = (k == "here" or k == "up") and (GREEN .. ns.CAMP_NAME[line] .. "|r") or ns.CAMP_NAME[line]
+		end
 		notes[#notes + 1] = "Theory  " .. table.concat(t, ", ")
 	end
 	local alt = state.me and plan.alt[state.me]
@@ -546,24 +583,47 @@ function ns.Render(state)
 		notes[#notes + 1] = ("You  %s instead: %s%d%%|r"):format(ns.CAMP_NAME[alt[1].line], GRAY,
 			math.floor(alt[1].delta * 100 + 0.5))
 	end
-	for i, n in ipairs(f.notes) do
-		local t = f.noteTips[i]
-		if notes[i] then
-			n:ClearAllPoints()
-			n:SetPoint("TOPLEFT", LAYOUT.pad, -y)
-			n:SetText(notes[i])
-			n:Show()
-			local h = math.max(LAYOUT.noteH, (n:GetStringHeight() or 0) + 2)
-			t:ClearAllPoints()
-			t:SetPoint("TOPLEFT", LAYOUT.pad, -y)
-			t:SetHeight(h)
-			t.tipText = NOTE_TIPS[notes[i]:match("^(%a+)  ") or ""]
-			t:Show()
-			y = y + h
-		else
-			n:Hide()
-			t:Hide()
-		end
+	-- a note: its label colored by kind, the tip found by the label
+	local used = 0
+	local function place(note, y)
+		used = used + 1
+		local n, t = f.notes[used], f.noteTips[used]
+		if not n then return y end
+		local label = note:match("^(%a+)  ")
+		n:ClearAllPoints()
+		n:SetPoint("TOPLEFT", LAYOUT.pad, -y)
+		n:SetText((label and LABEL_COLOR[label]) and (LABEL_COLOR[label] .. label .. "|r" .. note:sub(#label + 1)) or note)
+		n:Show()
+		local h = math.max(LAYOUT.noteH, (n:GetStringHeight() or 0) + 2)
+		t:ClearAllPoints()
+		t:SetPoint("TOPLEFT", LAYOUT.pad, -y)
+		t:SetHeight(h)
+		t.tipText = NOTE_TIPS[label or ""]
+		t:Show()
+		return y + h
+	end
+	local y = LAYOUT.pad + LAYOUT.titleH
+	for _, note in ipairs(top) do y = place(note, y) end
+	local split = #top > 0 and #list > 0
+	f.sep:SetShown(split)
+	f.dropHead:SetShown(split)
+	if split then
+		f.sep:ClearAllPoints()
+		f.sep:SetPoint("TOPLEFT", LAYOUT.pad, -(y + 3))
+		f.sep:SetPoint("TOPRIGHT", -LAYOUT.pad, -(y + 3))
+		f.dropHead:ClearAllPoints()
+		f.dropHead:SetPoint("TOPLEFT", LAYOUT.pad, -(y + 6))
+		y = y + 6 + LAYOUT.noteH
+	end
+	for i, r in ipairs(f.rows) do
+		r:ClearAllPoints()
+		r:SetPoint("TOPLEFT", LAYOUT.pad, -(y + (i - 1) * LAYOUT.rowH))
+	end
+	y = y + math.min(#list, maxRows) * LAYOUT.rowH + 4
+	for _, note in ipairs(notes) do y = place(note, y) end
+	for i = used + 1, #f.notes do
+		f.notes[i]:Hide()
+		f.noteTips[i]:Hide()
 	end
 
 	if ns.db and ns.db.grid then
