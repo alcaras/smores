@@ -1,9 +1,11 @@
 -- Timer.lua: how long you still have to sit at the campfire. Welcoming Campfire (1229739; 1289723 lets you craft too)
 -- is on you while you sit at a fire; after its minute (60 s, SpellDuration 3) it casts Camp Benefits (1229741), the
 -- buffs of the camp's features. A thin line above your character counts that minute down; when it ends with Camp
--- Benefits on, the line turns green for a moment, then goes. Gone when you get up, in combat, and while Camp Benefits
--- is already on you. (The user, 2026-11-06: "do something like the bedroll timer, but not overlapping with it, for how
--- long you have to sit"; Bedroll's line is at 190, its reminder at 240.) /smores timer on | off.
+-- Benefits on, the line turns green for a moment, then goes. Gone when you get up and in combat. With Camp Benefits
+-- already on you it still counts, labelled "refresh": the minute casts them again (the user, 2026-11-10: "show the
+-- campfire gaining buffs even when i have the buff (refreshing)"). (The user, 2026-11-06: "do something like the
+-- bedroll timer, but not overlapping with it, for how long you have to sit"; Bedroll's line is at 190, its reminder at
+-- 240.) /smores timer on | off.
 local ADDON, ns = ...
 
 local SITTING = { 1229739, 1289723 }   -- Welcoming Campfire (both)
@@ -27,6 +29,7 @@ local LAYOUT = {
 	textGap   = 6,
 	labelGap  = 3,
 	doneHold  = 4,                          -- seconds the green line stays
+	endSlack  = 1.5,                        -- seconds before its end the sitting aura may go and still count as done
 	tick      = 0.1,
 }
 
@@ -83,47 +86,52 @@ local label = bar:CreateFontString(nil, "OVERLAY", LAYOUT.labelFont)
 label:SetPoint("BOTTOM", line, "TOP", 0, LAYOUT.labelGap)
 
 local doneAt   -- GetTime() Camp Benefits landed, while the green line shows
-local sat      -- the sitting aura was on at the last look
+local sat      -- the sitting aura's end (GetTime) at the last look, while it is on
+local refresh  -- Camp Benefits were already on while the minute ran (it renews them)
+local doneRefresh
 
 local function Clock(s)
 	s = math.max(0, math.floor(s + 0.5))
 	return ("%d:%02d"):format(math.floor(s / 60), s % 60)
 end
 
-local function Draw(share, left, done)
+local function Draw(share, left, done, renew)
 	share = math.max(0, math.min(1, share))
 	bar:SetValue(share)
 	bar:SetStatusBarColor(unpack(done and LAYOUT.full or LAYOUT.fill))
 	spark:ClearAllPoints()
 	spark:SetPoint("CENTER", line, "LEFT", LAYOUT.width * share, 0)
 	spark:SetShown(not done)
-	label:SetText(done and "Camp benefits on" or "Camp benefits")
+	if done then label:SetText(renew and "Camp benefits refreshed" or "Camp benefits on")
+	else label:SetText(renew and "Camp benefits: refresh" or "Camp benefits") end
 	timeText:SetText(done and "" or Clock(left))
 end
 
 local function Update()
 	local now = GetTime()
-	if not On() or ns.InCombat() then sat, doneAt = nil, nil line:Hide() return end
+	if not On() or ns.InCombat() then sat, refresh, doneAt = nil, nil, nil line:Hide() return end
 	if doneAt then
-		if now - doneAt >= LAYOUT.doneHold then doneAt = nil line:Hide() else Draw(1, 0, true) line:Show() end
+		if now - doneAt >= LAYOUT.doneHold then doneAt = nil line:Hide() else Draw(1, 0, true, doneRefresh) line:Show() end
 		return
 	end
 	local exp, dur = Sitting()
-	if exp and not Aura(BENEFITS) then
-		sat = true
-		Draw(1 - (exp - now) / dur, exp - now, false)
+	if exp then
+		-- a new minute (first look, or the aura put on again): is it a refresh?
+		if not sat or exp > sat + LAYOUT.endSlack then refresh = Aura(BENEFITS) ~= nil end
+		sat = exp
+		Draw(1 - (exp - now) / dur, exp - now, false, refresh)
 		line:Show()
 		return
 	end
 	-- the minute ran out with the benefits on you: green, then gone; got up early: gone
-	if sat and Aura(BENEFITS) then
-		doneAt = now
-		Draw(1, 0, true)
+	if sat and now >= sat - LAYOUT.endSlack and Aura(BENEFITS) then
+		doneAt, doneRefresh = now, refresh
+		Draw(1, 0, true, refresh)
 		line:Show()
 	else
 		line:Hide()
 	end
-	sat = nil
+	sat, refresh = nil, nil
 end
 ns.TimerUpdate = Update
 

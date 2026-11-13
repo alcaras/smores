@@ -1,5 +1,5 @@
 {
- "build": "1.60.1.70790",
+ "build": "1.60.1.70938",
  "camp": {
   "ap": {
    "aura": 1230164,
@@ -718,7 +718,7 @@
    "icon": "inv_10_skinning_leather_rarehide_color1",
    "line": "tent",
    "name": "Tanning Rack",
-   "rank": 140,
+   "rank": 125,
    "skill": 165,
    "spell": 1307395,
    "tier": 2
@@ -863,7 +863,7 @@
    "fire": 5,
    "icon": "inv_camelot_camping_welcomingcampfire",
    "name": "Journeyman Campfire Kit",
-   "rank": 140,
+   "rank": 90,
    "skill": 185,
    "spell": 1307252
   },
